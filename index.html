@@ -76,6 +76,14 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .me svg{width:30px;height:30px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
 .pin{width:22px;height:22px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#ef4444;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)}
 .empty{color:var(--muted);padding:20px 4px;text-align:center}
+#navBanner{position:absolute;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));display:none;align-items:center;gap:14px;background:var(--accent);color:#fff;border:0}
+#navBanner.on{display:flex}
+#navBanner .arr{font-size:46px;line-height:1;width:56px;text-align:center;flex:none}
+#navBanner .big{font-size:26px}
+#navBar{position:absolute;left:10px;right:70px;bottom:10px;display:none;align-items:center;gap:8px}
+#navBar.on{display:flex}
+#navBar>div{flex:1;min-width:0}
+#viewBtn{position:absolute;right:12px;bottom:66px;width:46px;height:46px;border-radius:50%;border:0;background:var(--card);color:var(--accent);font:700 15px system-ui,sans-serif;box-shadow:0 3px 12px rgba(0,0,0,.25);cursor:pointer}
 </style>
 </head>
 <body>
@@ -91,6 +99,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
   <div id="sheet" class="card"></div>
   <button id="locate" aria-label="Где я"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
   <div id="metro" class="card"></div>
+  <button id="viewBtn" aria-label="2D / 3D">3D</button>
+  <div id="navBanner" class="card"><div class="arr" id="nbArr">↑</div><div><div class="big" id="nbDist"></div><div id="nbTxt"></div></div></div>
+  <div id="navBar" class="card"><div><div class="big" id="nbEta"></div><div class="sub" id="nbRem"></div></div><button id="nbVoice" class="btn ghost">🔊</button><button id="nbEnd" class="btn" style="background:#ef4444">Выйти</button></div>
 </div>
 
 <section class="view" id="v-search">
@@ -178,6 +189,7 @@ $('#toPill').onclick = () => tab('search');
 
 /* ---------- карта ---------- */
 let map, meEl, meMarker, destMarker, me = null, dest = null;
+let curRoute = null, nav = null, sim = null, follow = true, voiceOn = true, prevPos = null, extr = [];
 const MODES = [['foot','🚶 Пешком'],['bike','🚲 Велосипед'],['car','🚗 Машина'],['metro','🚇 Метро'],['bus','🚌 Наземный']];
 $('#modes').innerHTML = MODES.map(m => `<button data-m="${m[0]}">${m[1]}</button>`).join('');
 $('#modes').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.mode = b.dataset.m; save(); markModes(); if (dest) buildRoute(); };
@@ -190,6 +202,7 @@ function initMap() {
     center: [30.3141, 59.9386], zoom: 15.3, pitch: S.d3 ? 60 : 0, bearing: -17, maxPitch: 75, attributionControl: {compact: true}
   });
   map.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
+  map.on('dragstart', e => { if (nav && nav.active && e.originalEvent) follow = false; });
   map.on('load', () => {
     map.addSource('route', {type: 'geojson', data: {type: 'FeatureCollection', features: []}});
     map.addLayer({id: 'route-case', type: 'line', source: 'route', filter: ['!', ['get', 'dash']], layout: {'line-cap': 'round', 'line-join': 'round'}, paint: {'line-color': '#fff', 'line-width': 10, 'line-opacity': .9}});
@@ -198,9 +211,10 @@ function initMap() {
     map.addSource('pts', {type: 'geojson', data: {type: 'FeatureCollection', features: []}});
     map.addLayer({id: 'pts', type: 'circle', source: 'pts', paint: {'circle-radius': 6, 'circle-color': '#fff', 'circle-stroke-width': 3, 'circle-stroke-color': ['coalesce', ['get', 'color'], S.accent]}});
     applyTheme();
+    init3dLayers(); set3D(S.d3);
   });
   map.on('click', e => {
-    if ($('#v-search').classList.contains('on')) return;
+    if ($('#v-search').classList.contains('on') || (nav && nav.active)) return;
     setDest(e.lngLat.lat, e.lngLat.lng, 'Точка на карте', true);
   });
 }
@@ -218,20 +232,164 @@ function startGeo() {
   if (!navigator.geolocation) { toast('Геолокация недоступна в этом браузере'); return; }
   mkMe();
   navigator.geolocation.watchPosition(p => {
-    const first = !me;
-    me = {lat: p.coords.latitude, lon: p.coords.longitude};
-    if (!meMarker && map) meMarker = new maplibregl.Marker({element: meEl, rotationAlignment: 'map'}).setLngLat([me.lon, me.lat]).addTo(map);
-    else if (meMarker) meMarker.setLngLat([me.lon, me.lat]);
-    if (typeof p.coords.heading === 'number' && !isNaN(p.coords.heading) && meMarker) meMarker.setRotation(p.coords.heading);
-    if (first && map) map.easeTo({center: [me.lon, me.lat], duration: 800});
-    checkMetro();
+    if (sim) return;
+    const h = (p.coords.speed > 1 && typeof p.coords.heading === 'number' && !isNaN(p.coords.heading)) ? p.coords.heading : null;
+    handlePos(p.coords.latitude, p.coords.longitude, h);
   }, err => toast('Нет доступа к геолокации: старт будет в центре карты'), {enableHighAccuracy: true, maximumAge: 5000, timeout: 15000});
 }
-$('#locate').onclick = () => { if (me && map) map.easeTo({center: [me.lon, me.lat], zoom: 16.5, duration: 700}); else { toast('Определяю местоположение…'); startGeo(); } };
+$('#locate').onclick = () => { follow = true; if (nav && nav.active) { followCam(); return; } if (me && map) map.easeTo({center: [me.lon, me.lat], zoom: 16.5, duration: 700}); else { toast('Определяю местоположение…'); startGeo(); } };
 function origin() { if (me) return me; const c = map.getCenter(); $('#fromPill').textContent = '📌 центр карты (нет GPS)'; return {lat: c.lat, lon: c.lng}; }
+
+/* ---------- 2D / 3D ---------- */
+function init3dLayers() {
+  extr = map.getStyle().layers.filter(l => l.type === 'fill-extrusion').map(l => ({id: l.id, h: map.getPaintProperty(l.id, 'fill-extrusion-height'), b: map.getPaintProperty(l.id, 'fill-extrusion-base')}));
+}
+function set3D(on) {
+  S.d3 = on; save();
+  $('#opt3d').checked = on; $('#viewBtn').textContent = on ? '3D' : '2D';
+  if (!map) return;
+  extr.forEach(e => { try { map.setPaintProperty(e.id, 'fill-extrusion-height', on ? e.h : 0); map.setPaintProperty(e.id, 'fill-extrusion-base', on ? e.b : 0); } catch (err) {} });
+  try { map.touchPitch[on ? 'enable' : 'disable'](); } catch (err) {}
+  map.easeTo({pitch: on ? 60 : 0, duration: 600});
+}
+$('#viewBtn').onclick = () => set3D(!S.d3);
+
+/* ---------- позиция ---------- */
+const brg = (a, b) => { const r = Math.PI / 180, y = Math.sin((b.lon - a.lon) * r) * Math.cos(b.lat * r), x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos((b.lon - a.lon) * r); return (Math.atan2(y, x) / r + 360) % 360; };
+function handlePos(lat, lon, heading) {
+  const first = !me, ph = me && me.h != null ? me.h : null;
+  if (heading == null && prevPos && hav(prevPos.lat, prevPos.lon, lat, lon) > 5) heading = brg(prevPos, {lat, lon});
+  if (!prevPos || hav(prevPos.lat, prevPos.lon, lat, lon) > 5) prevPos = {lat, lon};
+  me = {lat, lon, h: heading != null ? heading : ph};
+  if (!meEl) mkMe();
+  if (!meMarker && map) meMarker = new maplibregl.Marker({element: meEl, rotationAlignment: 'map', pitchAlignment: 'map'}).setLngLat([lon, lat]).addTo(map);
+  else if (meMarker) meMarker.setLngLat([lon, lat]);
+  if (me.h != null && meMarker) meMarker.setRotation(me.h);
+  if (nav && nav.active) { nav.pos = me; updateNav(); }
+  else { if (first && map) map.easeTo({center: [lon, lat], duration: 800}); checkMetro(); }
+}
+
+/* ---------- пошаговая навигация ---------- */
+const OFF = {foot: 45, bike: 55, car: 70};
+const THR = {foot: [60, 15], bike: [120, 25], car: [350, 50]};
+const NAVZ = {foot: 18.3, bike: 17.8, car: 17.2};
+function prep(coords) { const cum = [0]; for (let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + hav(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0])); return cum; }
+function nearestOn(coords, cum, lat, lon) {
+  const k = Math.cos(lat * Math.PI / 180); let best = {d: 1e12, along: 0};
+  for (let i = 1; i < coords.length; i++) {
+    const ax = (coords[i - 1][0] - lon) * k * 111320, ay = (coords[i - 1][1] - lat) * 110540, bx = (coords[i][0] - lon) * k * 111320, by = (coords[i][1] - lat) * 110540;
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    let t = L2 ? -(ax * dx + ay * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+    const d = Math.hypot(ax + t * dx, ay + t * dy);
+    if (d < best.d) best = {d, along: cum[i - 1] + t * (cum[i] - cum[i - 1])};
+  }
+  return best;
+}
+function instr(st) {
+  const m = st.maneuver, t = m.type, mod = m.modifier || 'straight', nm = st.name ? ' на ' + st.name : '';
+  const D = {'left': ['Поверните налево', '↰'], 'right': ['Поверните направо', '↱'], 'slight left': ['Возьмите левее', '↖'], 'slight right': ['Возьмите правее', '↗'], 'sharp left': ['Резко налево', '↰'], 'sharp right': ['Резко направо', '↱'], 'uturn': ['Развернитесь', '↶'], 'straight': ['Двигайтесь прямо', '↑']};
+  if (t === 'arrive') return {txt: 'Вы прибыли' + (mod === 'left' ? ', цель слева' : mod === 'right' ? ', цель справа' : ''), ar: '🏁'};
+  if (/roundabout|rotary/.test(t)) return {txt: 'На круговом движении ' + (m.exit ? 'сверните на ' + m.exit + '-й съезд' : 'продолжайте') + nm, ar: '⟳'};
+  if (t === 'fork') { if (mod.includes('left')) return {txt: 'На развилке держитесь левее' + nm, ar: '↖'}; if (mod.includes('right')) return {txt: 'На развилке держитесь правее' + nm, ar: '↗'}; }
+  if (t === 'merge') return {txt: 'Перестройтесь' + nm, ar: '↑'};
+  const d = D[mod] || D.straight; return {txt: d[0] + nm, ar: d[1]};
+}
+function buildMan(R) {
+  const out = [], n = R.steps.length;
+  R.steps.forEach((st, i) => {
+    if (i === 0) return;
+    const m = st.maneuver, last = i === n - 1;
+    if (!last && (m.type === 'new name' || m.type === 'continue' || m.type === 'notification') && (!m.modifier || m.modifier === 'straight')) return;
+    const a = last ? R.total : nearestOn(R.coords, R.cum, m.location[1], m.location[0]).along;
+    out.push(Object.assign({along: a}, instr(st)));
+  });
+  out.sort((x, y) => x.along - y.along);
+  if (!out.length || out[out.length - 1].ar !== '🏁') out.push({along: R.total, txt: 'Вы прибыли', ar: '🏁'});
+  return out;
+}
+async function fetchRoute(o, mode) {
+  const u = `https://routing.openstreetmap.de/${OSRM[mode]}/${o.lon},${o.lat};${dest.lon},${dest.lat}?overview=full&geometries=geojson&steps=true`;
+  const r = await fetch(u); if (!r.ok) throw new Error('Сервер маршрутов: ' + r.status);
+  const j = await r.json(); if (!j.routes || !j.routes[0]) throw new Error('Маршрут не найден');
+  const rt = j.routes[0], speed = {foot: 80, bike: 250, car: null}[mode];
+  const coords = rt.geometry.coordinates, cum = prep(coords);
+  return {mode, coords, cum, total: cum[cum.length - 1] || rt.distance, dist: rt.distance, min: speed ? rt.distance / speed : rt.duration / 60, steps: (rt.legs[0] && rt.legs[0].steps) || []};
+}
+async function routeOsrm(o) {
+  const R = await fetchRoute(o, S.mode); curRoute = R;
+  setData('route', [line(R.coords)]); fit(R.coords);
+  const names = [...new Set(R.steps.map(s => s.name).filter(Boolean))].slice(0, 6);
+  sheet(`<div class="big">${fmtT(R.min)} · ${fmtD(R.dist)}</div><div class="sub">${MODES.find(m => m[0] === S.mode)[1]} до «${esc(dest.name)}»</div>` + (names.length ? `<div style="margin-top:8px" class="sub">Через: ${names.map(esc).join(' → ')}</div>` : '') + `<div class="row" style="margin-top:10px"><button class="btn" id="goBtn" style="flex:1">▶ Начать</button><button class="btn ghost" id="simBtn">Демо</button></div>`);
+  $('#goBtn').onclick = () => startNav(false); $('#simBtn').onclick = () => startNav(true);
+}
+
+function speak(t) { if (!voiceOn || !('speechSynthesis' in window)) return; try { const u = new SpeechSynthesisUtterance(t); u.lang = 'ru-RU'; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
+function followCam() {
+  if (!nav || !follow || !map) return;
+  const p = nav.pos;
+  map.easeTo({center: [p.lon, p.lat], bearing: p.h != null ? p.h : map.getBearing(), pitch: S.d3 ? 60 : 0, zoom: NAVZ[nav.r.mode], duration: 900, easing: t => t, padding: {top: S.d3 ? 220 : 140, bottom: 90, left: 0, right: 0}});
+}
+function updateNav() {
+  const R = nav.r, p = nav.pos;
+  const np = nearestOn(R.coords, R.cum, p.lat, p.lon), left = Math.max(0, R.total - np.along);
+  if (np.d > OFF[R.mode] && !nav.rerouting && !sim && Date.now() - nav.lastReroute > 12000) reroute();
+  if (left < 20 || hav(p.lat, p.lon, dest.lat, dest.lon) < 22) { endNav(true); return; }
+  let k = nav.man.findIndex(m => m.along > np.along + 6); if (k < 0) k = nav.man.length - 1;
+  const m = nav.man[k], dm = Math.max(0, m.along - np.along), perMin = R.total / Math.max(R.min, 0.1), minLeft = left / perMin;
+  $('#nbArr').textContent = m.ar; $('#nbDist').textContent = (m.ar === '🏁' && dm < 30) ? 'Финиш' : fmtD(dm); $('#nbTxt').textContent = m.txt;
+  $('#nbEta').textContent = fmtT(minLeft) + ' · ' + fmtD(left);
+  $('#nbRem').textContent = 'Прибытие в ' + new Date(Date.now() + minLeft * 60000).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+  const [t1, t2] = THR[R.mode], ka = k + '-a', kb = k + '-b';
+  if (dm <= t2 && !nav.spoken[kb]) { nav.spoken[kb] = nav.spoken[ka] = 1; speak(m.txt); }
+  else if (dm <= t1 && dm > t2 && !nav.spoken[ka]) { nav.spoken[ka] = 1; speak('Через ' + (Math.round(dm / 10) * 10) + ' метров, ' + m.txt.charAt(0).toLowerCase() + m.txt.slice(1)); }
+  followCam();
+}
+async function reroute() {
+  nav.rerouting = true; nav.lastReroute = Date.now(); toast('Перестраиваю маршрут…', 2500); speak('Перестраиваю маршрут');
+  try { const r = await fetchRoute(nav.pos, nav.r.mode); if (!nav) return; curRoute = r; nav.r = r; nav.man = buildMan(r); nav.spoken = {}; setData('route', [line(r.coords)]); }
+  catch (e) { toast('Не удалось перестроить маршрут'); }
+  if (nav) nav.rerouting = false;
+}
+function startSim(R) {
+  let dist = 0; const v = {foot: 7, bike: 11, car: 26}[R.mode];
+  sim = setInterval(() => {
+    dist = Math.min(R.total, dist + v);
+    let i = 1; while (i < R.cum.length - 1 && R.cum[i] < dist) i++;
+    const a = R.coords[i - 1], b = R.coords[i], seg = (R.cum[i] - R.cum[i - 1]) || 1, t = Math.min(1, Math.max(0, (dist - R.cum[i - 1]) / seg));
+    handlePos(a[1] + (b[1] - a[1]) * t, a[0] + (b[0] - a[0]) * t, brg({lat: a[1], lon: a[0]}, {lat: b[1], lon: b[0]}));
+  }, 1000);
+}
+async function startNav(simulate) {
+  if (!curRoute || !map) return;
+  const R = curRoute;
+  if (!simulate && !me) { toast('Нет GPS: не могу вести по маршруту. Нажмите «Демо» для проверки.', 4500); return; }
+  nav = {active: true, r: R, man: buildMan(R), pos: me || {lat: R.coords[0][1], lon: R.coords[0][0]}, spoken: {}, lastReroute: 0, rerouting: false, wl: null, savedMe: me ? Object.assign({}, me) : null};
+  follow = true;
+  $('#top').style.display = 'none'; $('#sheet').classList.remove('on'); $('#metro').classList.remove('on');
+  $('#navBanner').classList.add('on'); $('#navBar').classList.add('on');
+  try { if (navigator.wakeLock) nav.wl = await navigator.wakeLock.request('screen'); } catch (e) {}
+  if (!nav) return;
+  if (simulate) startSim(R); else updateNav();
+  followCam();
+}
+function endNav(arrived, silent) {
+  if (!nav) return;
+  const n = nav; nav = null;
+  if (sim) { clearInterval(sim); sim = null; if (n.savedMe) { me = n.savedMe; if (meMarker) meMarker.setLngLat([me.lon, me.lat]); } else { me = null; if (meMarker) { meMarker.remove(); meMarker = null; } } }
+  try { if (n.wl) n.wl.release(); } catch (e) {}
+  try { speechSynthesis.cancel(); } catch (e) {}
+  $('#navBanner').classList.remove('on'); $('#navBar').classList.remove('on'); $('#top').style.display = '';
+  if (arrived && !silent) { speak('Вы прибыли'); toast('🏁 Вы прибыли!', 5000); }
+  clearRoute();
+  if (map) map.easeTo({pitch: S.d3 ? 60 : 0, bearing: S.d3 ? -17 : 0, padding: {top: 0, bottom: 0, left: 0, right: 0}, duration: 800});
+  if (!arrived && !silent) buildRoute();
+}
+$('#nbVoice').onclick = () => { voiceOn = !voiceOn; $('#nbVoice').textContent = voiceOn ? '🔊' : '🔇'; if (!voiceOn) { try { speechSynthesis.cancel(); } catch (e) {} } };
+$('#nbEnd').onclick = () => endNav(false);
 
 /* ---------- цель ---------- */
 function setDest(lat, lon, name, route) {
+  if (nav) endNav(true, true);
   dest = {lat, lon, name};
   if (destMarker) destMarker.remove();
   const el = document.createElement('div'); el.className = 'pin';
@@ -250,27 +408,13 @@ async function buildRoute() {
   if (!dest || !map) return;
   markModes();
   const o = origin();
-  clearRoute();
+  clearRoute(); curRoute = null;
   sheet('<div class="sub">Строю маршрут…</div>');
   try {
     if (S.mode === 'metro') await routeMetro(o);
     else if (S.mode === 'bus') await routeBus(o);
     else await routeOsrm(o);
   } catch (e) { console.error(e); sheet('<div class="big">Не получилось построить маршрут</div><div class="sub">' + esc(e.message || e) + '. Проверьте интернет и попробуйте ещё раз.</div>'); }
-}
-
-async function routeOsrm(o) {
-  const u = `https://routing.openstreetmap.de/${OSRM[S.mode]}/${o.lon},${o.lat};${dest.lon},${dest.lat}?overview=full&geometries=geojson&steps=true`;
-  const r = await fetch(u); if (!r.ok) throw new Error('Сервер маршрутов: ' + r.status);
-  const j = await r.json(); if (!j.routes || !j.routes[0]) throw new Error('Маршрут не найден');
-  const rt = j.routes[0];
-  // у публичного foot/bike-сервера время бывает занижено, считаем сами по средней скорости
-  const speed = {foot: 80, bike: 250, car: null}[S.mode];
-  const min = speed ? rt.distance / speed : rt.duration / 60;
-  setData('route', [line(rt.geometry.coordinates)]);
-  fit(rt.geometry.coordinates);
-  const names = [...new Set((rt.legs[0].steps || []).map(s => s.name).filter(Boolean))].slice(0, 6);
-  sheet(`<div class="big">${fmtT(min)} · ${fmtD(rt.distance)}</div><div class="sub">${MODES.find(m => m[0] === S.mode)[1]} до «${esc(dest.name)}»</div>` + (names.length ? `<div style="margin-top:8px" class="sub">Через: ${names.map(esc).join(' → ')}</div>` : ''));
 }
 
 /* ---------- Overpass ---------- */
@@ -584,12 +728,12 @@ setInterval(() => { if (S.light) lightTick(); }, 500);
 
 /* ---------- настройки ---------- */
 $('#opt3d').checked = S.d3; $('#optLight').checked = S.light; $('#apikey').value = S.key;
-$('#opt3d').onchange = e => { S.d3 = e.target.checked; save(); if (map) map.easeTo({pitch: S.d3 ? 60 : 0, duration: 600}); };
+$('#opt3d').onchange = e => set3D(e.target.checked);
 $('#optLight').onchange = e => { S.light = e.target.checked; save(); applyLight(); };
 $('#apikey').onchange = e => { S.key = e.target.value.trim(); save(); toast(S.key ? 'Ключ сохранён' : 'Ключ удалён'); };
 
 /* ---------- старт ---------- */
-applyTheme(); markModes(); applyLight();
+applyTheme(); markModes(); applyLight(); $('#viewBtn').textContent = S.d3 ? '3D' : '2D';
 initMap(); startGeo();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
