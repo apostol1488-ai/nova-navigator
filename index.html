@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nova Navigator</title>
+<meta name="theme-color" content="#22c55e">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+:root{--bg:#fff;--card:#fff;--text:#14171c;--muted:#6b7380;--line:#e6e8ec;--chip:#f1f3f5;--accent:#22c55e;--tab:64px}
+[data-theme=dark]{--bg:#0f1115;--card:#181b21;--text:#f2f4f7;--muted:#9aa3b2;--line:#2a2f38;--chip:#232831}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+#map{position:absolute;left:0;right:0;top:0;bottom:calc(var(--tab) + env(safe-area-inset-bottom))}
+[data-theme=dark] #map .maplibregl-canvas{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.92)}
+.maplibregl-ctrl-bottom-left,.maplibregl-ctrl-bottom-right{opacity:.7}
+#tabbar{position:fixed;left:0;right:0;bottom:0;height:calc(var(--tab) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--card);border-top:1px solid var(--line);display:flex;z-index:30}
+#tabbar button{flex:1;border:0;background:none;color:var(--muted);font:inherit;font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+#tabbar button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#tabbar button.on{color:var(--accent);font-weight:600}
+.view{position:absolute;left:0;right:0;top:0;bottom:calc(var(--tab) + env(safe-area-inset-bottom));background:var(--bg);overflow:auto;display:none;z-index:20;padding:16px 16px 24px}
+.view.on{display:block}
+h2{margin:4px 0 12px;font-size:22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;box-shadow:0 4px 18px rgba(0,0,0,.12)}
+#navUI{position:absolute;left:0;right:0;top:0;bottom:calc(var(--tab) + env(safe-area-inset-bottom));pointer-events:none;z-index:10}
+#navUI>*{pointer-events:auto}
+#top{position:absolute;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top))}
+.row{display:flex;gap:8px;align-items:center}
+.pill{flex:1;border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:12px;padding:10px 12px;font:inherit;text-align:left;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill.muted{color:var(--muted)}
+#modes{display:flex;gap:6px;margin-top:8px;overflow-x:auto;scrollbar-width:none}
+#modes button{flex:none;border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:20px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
+#modes button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#locate{position:absolute;right:12px;bottom:12px;width:46px;height:46px;border-radius:50%;border:0;background:var(--card);color:var(--accent);box-shadow:0 3px 12px rgba(0,0,0,.25);font-size:20px;cursor:pointer}
+#locate svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2}
+#sheet{position:absolute;left:10px;right:70px;bottom:10px;max-height:46vh;overflow:auto;display:none}
+#sheet.on{display:block}
+#metro{position:absolute;left:10px;right:10px;bottom:10px;max-height:52vh;overflow:auto;display:none;z-index:15}
+#metro.on{display:block}
+.x{float:right;border:0;background:var(--chip);color:var(--text);width:28px;height:28px;border-radius:50%;font-size:16px;cursor:pointer}
+.big{font-size:18px;font-weight:700}
+.sub{color:var(--muted);font-size:13px}
+.step{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line);align-items:flex-start}
+.step:first-of-type{border-top:0}
+.dot{flex:none;width:12px;height:12px;border-radius:50%;margin-top:5px;background:var(--accent)}
+.badge{display:inline-block;padding:1px 8px;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;font-size:13px;margin-right:4px}
+input[type=text],input[type=password],textarea{width:100%;border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:12px;padding:12px;font:inherit;outline:none}
+input:focus,textarea:focus{border-color:var(--accent)}
+.btn{border:0;background:var(--accent);color:#fff;border-radius:12px;padding:11px 16px;font:inherit;font-weight:600;cursor:pointer}
+.btn.ghost{background:var(--chip);color:var(--text)}
+.item{padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.item b{display:block}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chips button{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:18px;padding:6px 11px;font:inherit;font-size:13px;cursor:pointer}
+.set{padding:12px 0;border-bottom:1px solid var(--line)}
+.set label{display:block;font-weight:600;margin-bottom:8px}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;border:1px solid var(--line);background:var(--chip);color:var(--text);padding:9px;border-radius:10px;font:inherit;cursor:pointer}
+.seg button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.sw{display:flex;gap:10px;flex-wrap:wrap}
+.sw button{width:38px;height:38px;border-radius:50%;border:3px solid transparent;cursor:pointer}
+.sw button.on{border-color:var(--text)}
+.toggle{display:flex;justify-content:space-between;align-items:center}
+.toggle input{width:44px;height:24px;accent-color:var(--accent)}
+#toast{position:fixed;left:50%;top:calc(80px + env(safe-area-inset-top));transform:translateX(-50%);background:#111c;color:#fff;padding:8px 14px;border-radius:18px;font-size:13px;z-index:50;display:none;max-width:90%;text-align:center}
+#light{position:absolute;right:12px;top:calc(130px + env(safe-area-inset-top));background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 8px;display:none;align-items:center;gap:8px;box-shadow:0 3px 12px rgba(0,0,0,.2);text-align:center}
+#light.on{display:flex}
+#light i{display:block;width:26px;height:26px;border-radius:50%;background:#e11d48}
+#light small{display:block;font-size:9px;color:var(--muted)}
+#light b{font-size:16px}
+.me{width:30px;height:30px}
+.me svg{width:30px;height:30px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
+.pin{width:22px;height:22px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#ef4444;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.empty{color:var(--muted);padding:20px 4px;text-align:center}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="navUI">
+  <div id="top" class="card">
+    <div class="row"><span class="sub" style="width:48px">Откуда</span><div class="pill muted" id="fromPill">📍 моё местоположение</div></div>
+    <div class="row" style="margin-top:6px"><span class="sub" style="width:48px">Куда</span><button class="pill" id="toPill">Куда едем? Нажмите для поиска</button></div>
+    <div id="modes"></div>
+  </div>
+  <div id="light"><i id="lightDot"></i><div><small>ДЕМО светофор</small><b id="lightSec">0</b></div></div>
+  <div id="sheet" class="card"></div>
+  <button id="locate" aria-label="Где я"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+  <div id="metro" class="card"></div>
+</div>
+
+<section class="view" id="v-search">
+  <h2>Поиск</h2>
+  <input type="text" id="q" placeholder="Адрес или место: СПб и Ленобласть" autocomplete="off">
+  <div id="qres"></div>
+</section>
+
+<section class="view" id="v-places">
+  <h2>Интересные места</h2>
+  <div class="sub">Опишите, что хотите найти, а умный подбор найдёт места рядом с центром карты.</div>
+  <textarea id="aiq" rows="2" placeholder="Например: тихое кафе с wifi, где можно поработать" style="margin-top:10px"></textarea>
+  <div class="chips" id="aichips"></div>
+  <button class="btn" id="aigo" style="width:100%">Подобрать места</button>
+  <div class="sub" id="aistate" style="margin-top:8px"></div>
+  <div id="aires"></div>
+</section>
+
+<section class="view" id="v-settings">
+  <h2>Настройки</h2>
+  <div class="set"><label>Тема</label>
+    <div class="seg" id="themeSeg"><button data-v="auto">Авто</button><button data-v="light">Светлая</button><button data-v="dark">Тёмная</button></div></div>
+  <div class="set"><label>Цвет приложения</label><div class="sw" id="swatches"></div></div>
+  <div class="set"><div class="toggle"><label style="margin:0">3D-режим карты (наклон)</label><input type="checkbox" id="opt3d"></div></div>
+  <div class="set"><div class="toggle"><label style="margin:0">Светофор (демо-имитация)</label><input type="checkbox" id="optLight"></div>
+    <div class="sub">Реальных открытых данных о фазах светофоров нет, поэтому это условная имитация.</div></div>
+  <div class="set"><label>ИИ-подбор мест (по желанию)</label>
+    <input type="password" id="apikey" placeholder="API-ключ Anthropic (необязательно)">
+    <div class="sub">Без ключа работает встроенный подбор по ключевым словам. Ключ хранится только на этом устройстве.</div></div>
+  <div class="set"><label>Служебное</label>
+    <div class="row"><button class="btn ghost" id="testMetro">Проверить режим «у метро»</button><button class="btn ghost" id="clearCache">Сбросить кэш метро</button></div></div>
+  <div class="sub" style="padding-top:12px">Nova Navigator · карта © OpenStreetMap, OpenFreeMap. Маршруты: OSRM. Данные метро и наземного транспорта — OpenStreetMap, без реального времени.</div>
+</section>
+
+<nav id="tabbar">
+  <button data-tab="nav" class="on"><svg viewBox="0 0 24 24"><path d="M12 3l7 17-7-4-7 4z"/></svg>Навигатор</button>
+  <button data-tab="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Поиск</button>
+  <button data-tab="places"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/></svg>Места</button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Настройки</button>
+</nav>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ---------- утилиты ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let S = {theme:'auto', accent:'#22c55e', key:'', light:false, d3:true, mode:'foot'};
+try { Object.assign(S, JSON.parse(localStorage.getItem('nova') || '{}')); } catch (e) {}
+const save = () => { try { localStorage.setItem('nova', JSON.stringify(S)); } catch (e) {} };
+function toast(t, ms = 3200) { const e = $('#toast'); e.textContent = t; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', ms); }
+function hav(a, b, c, d) { const R = 6371000, r = Math.PI / 180, dl = (c - a) * r, dn = (d - b) * r; const x = Math.sin(dl / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dn / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
+const fmtD = m => m < 1000 ? Math.round(m / 10) * 10 + ' м' : (m / 1000).toFixed(m < 10000 ? 1 : 0) + ' км';
+const fmtT = min => { min = Math.max(1, Math.round(min)); return min < 60 ? min + ' мин' : Math.floor(min / 60) + ' ч ' + (min % 60 ? min % 60 + ' мин' : ''); };
+const WALK = 80; // м/мин
+
+/* ---------- темы ---------- */
+const ACCENTS = [['#22c55e','Зелёный'],['#8b5cf6','Фиолетовый'],['#3b82f6','Синий'],['#f97316','Оранжевый'],['#ec4899','Розовый'],['#ef4444','Красный'],['#14b8a6','Бирюзовый']];
+function applyTheme() {
+  const dark = S.theme === 'dark' || (S.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.documentElement.style.setProperty('--accent', S.accent);
+  document.querySelector('meta[name=theme-color]').content = S.accent;
+  $$('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === S.theme));
+  $$('#swatches button').forEach(b => b.classList.toggle('on', b.dataset.c === S.accent));
+  if (map && map.getLayer && map.getLayer('route-solid')) { map.setPaintProperty('route-solid', 'line-color', ['coalesce', ['get', 'color'], S.accent]); map.setPaintProperty('route-dash', 'line-color', ['coalesce', ['get', 'color'], S.accent]); }
+  if (meEl) meEl.querySelector('path').setAttribute('fill', S.accent);
+}
+$('#swatches').innerHTML = ACCENTS.map(a => `<button data-c="${a[0]}" title="${a[1]}" style="background:${a[0]}"></button>`).join('');
+$('#swatches').onclick = e => { const b = e.target.closest('button'); if (b) { S.accent = b.dataset.c; save(); applyTheme(); } };
+$('#themeSeg').onclick = e => { const b = e.target.closest('button'); if (b) { S.theme = b.dataset.v; save(); applyTheme(); } };
+matchMedia('(prefers-color-scheme: dark)').addEventListener && matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+
+/* ---------- вкладки ---------- */
+function tab(n) {
+  $$('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === n));
+  $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + n));
+  $('#navUI').style.display = n === 'nav' ? 'block' : 'none';
+  if (n === 'nav' && map) setTimeout(() => map.resize(), 50);
+  if (n === 'search') setTimeout(() => $('#q').focus(), 100);
+}
+$('#tabbar').onclick = e => { const b = e.target.closest('button'); if (b) tab(b.dataset.tab); };
+$('#toPill').onclick = () => tab('search');
+
+/* ---------- карта ---------- */
+let map, meEl, meMarker, destMarker, me = null, dest = null;
+const MODES = [['foot','🚶 Пешком'],['bike','🚲 Велосипед'],['car','🚗 Машина'],['metro','🚇 Метро'],['bus','🚌 Наземный']];
+$('#modes').innerHTML = MODES.map(m => `<button data-m="${m[0]}">${m[1]}</button>`).join('');
+$('#modes').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.mode = b.dataset.m; save(); markModes(); if (dest) buildRoute(); };
+function markModes() { $$('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === S.mode)); }
+
+function initMap() {
+  if (typeof maplibregl === 'undefined') { toast('Не удалось загрузить карту. Проверьте интернет.', 8000); return; }
+  map = new maplibregl.Map({
+    container: 'map', style: 'https://tiles.openfreemap.org/styles/liberty',
+    center: [30.3141, 59.9386], zoom: 15.3, pitch: S.d3 ? 60 : 0, bearing: -17, maxPitch: 75, attributionControl: {compact: true}
+  });
+  map.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
+  map.on('load', () => {
+    map.addSource('route', {type: 'geojson', data: {type: 'FeatureCollection', features: []}});
+    map.addLayer({id: 'route-case', type: 'line', source: 'route', filter: ['!', ['get', 'dash']], layout: {'line-cap': 'round', 'line-join': 'round'}, paint: {'line-color': '#fff', 'line-width': 10, 'line-opacity': .9}});
+    map.addLayer({id: 'route-solid', type: 'line', source: 'route', filter: ['!', ['get', 'dash']], layout: {'line-cap': 'round', 'line-join': 'round'}, paint: {'line-color': ['coalesce', ['get', 'color'], S.accent], 'line-width': 6}});
+    map.addLayer({id: 'route-dash', type: 'line', source: 'route', filter: ['get', 'dash'], paint: {'line-color': ['coalesce', ['get', 'color'], S.accent], 'line-width': 4, 'line-dasharray': [1.2, 1.6]}});
+    map.addSource('pts', {type: 'geojson', data: {type: 'FeatureCollection', features: []}});
+    map.addLayer({id: 'pts', type: 'circle', source: 'pts', paint: {'circle-radius': 6, 'circle-color': '#fff', 'circle-stroke-width': 3, 'circle-stroke-color': ['coalesce', ['get', 'color'], S.accent]}});
+    applyTheme();
+  });
+  map.on('click', e => {
+    if ($('#v-search').classList.contains('on')) return;
+    setDest(e.lngLat.lat, e.lngLat.lng, 'Точка на карте', true);
+  });
+}
+function setData(src, feats) { if (map && map.getSource(src)) map.getSource(src).setData({type: 'FeatureCollection', features: feats}); }
+const line = (coords, props) => ({type: 'Feature', properties: props || {}, geometry: {type: 'LineString', coordinates: coords}});
+function fit(coords) { if (!map || !coords.length) return; const b = new maplibregl.LngLatBounds(); coords.forEach(c => b.extend(c)); map.fitBounds(b, {padding: {top: 220, bottom: 260, left: 40, right: 40}, maxZoom: 17, pitch: S.d3 ? 45 : 0, duration: 900}); }
+function clearRoute() { setData('route', []); setData('pts', []); }
+
+/* ---------- геолокация ---------- */
+function mkMe() {
+  meEl = document.createElement('div'); meEl.className = 'me';
+  meEl.innerHTML = `<svg viewBox="0 0 30 30"><path d="M15 2 L26 27 L15 21 L4 27 Z" fill="${S.accent}" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>`;
+}
+function startGeo() {
+  if (!navigator.geolocation) { toast('Геолокация недоступна в этом браузере'); return; }
+  mkMe();
+  navigator.geolocation.watchPosition(p => {
+    const first = !me;
+    me = {lat: p.coords.latitude, lon: p.coords.longitude};
+    if (!meMarker && map) meMarker = new maplibregl.Marker({element: meEl, rotationAlignment: 'map'}).setLngLat([me.lon, me.lat]).addTo(map);
+    else if (meMarker) meMarker.setLngLat([me.lon, me.lat]);
+    if (typeof p.coords.heading === 'number' && !isNaN(p.coords.heading) && meMarker) meMarker.setRotation(p.coords.heading);
+    if (first && map) map.easeTo({center: [me.lon, me.lat], duration: 800});
+    checkMetro();
+  }, err => toast('Нет доступа к геолокации: старт будет в центре карты'), {enableHighAccuracy: true, maximumAge: 5000, timeout: 15000});
+}
+$('#locate').onclick = () => { if (me && map) map.easeTo({center: [me.lon, me.lat], zoom: 16.5, duration: 700}); else { toast('Определяю местоположение…'); startGeo(); } };
+function origin() { if (me) return me; const c = map.getCenter(); $('#fromPill').textContent = '📌 центр карты (нет GPS)'; return {lat: c.lat, lon: c.lng}; }
+
+/* ---------- цель ---------- */
+function setDest(lat, lon, name, route) {
+  dest = {lat, lon, name};
+  if (destMarker) destMarker.remove();
+  const el = document.createElement('div'); el.className = 'pin';
+  destMarker = new maplibregl.Marker({element: el, anchor: 'bottom'}).setLngLat([lon, lat]).addTo(map);
+  $('#toPill').textContent = '🏁 ' + name; $('#toPill').classList.remove('muted');
+  tab('nav');
+  if (route) buildRoute();
+}
+
+/* ---------- маршруты ---------- */
+const OSRM = {foot: 'routed-foot/route/v1/foot', bike: 'routed-bike/route/v1/bike', car: 'routed-car/route/v1/driving'};
+function sheet(html) { const s = $('#sheet'); s.innerHTML = '<button class="x" id="shx">×</button>' + html; s.classList.add('on'); $('#shx').onclick = () => s.classList.remove('on'); }
+const step = (color, html) => `<div class="step"><span class="dot" style="background:${color || 'var(--accent)'}"></span><div>${html}</div></div>`;
+
+async function buildRoute() {
+  if (!dest || !map) return;
+  markModes();
+  const o = origin();
+  clearRoute();
+  sheet('<div class="sub">Строю маршрут…</div>');
+  try {
+    if (S.mode === 'metro') await routeMetro(o);
+    else if (S.mode === 'bus') await routeBus(o);
+    else await routeOsrm(o);
+  } catch (e) { console.error(e); sheet('<div class="big">Не получилось построить маршрут</div><div class="sub">' + esc(e.message || e) + '. Проверьте интернет и попробуйте ещё раз.</div>'); }
+}
+
+async function routeOsrm(o) {
+  const u = `https://routing.openstreetmap.de/${OSRM[S.mode]}/${o.lon},${o.lat};${dest.lon},${dest.lat}?overview=full&geometries=geojson&steps=true`;
+  const r = await fetch(u); if (!r.ok) throw new Error('Сервер маршрутов: ' + r.status);
+  const j = await r.json(); if (!j.routes || !j.routes[0]) throw new Error('Маршрут не найден');
+  const rt = j.routes[0];
+  // у публичного foot/bike-сервера время бывает занижено, считаем сами по средней скорости
+  const speed = {foot: 80, bike: 250, car: null}[S.mode];
+  const min = speed ? rt.distance / speed : rt.duration / 60;
+  setData('route', [line(rt.geometry.coordinates)]);
+  fit(rt.geometry.coordinates);
+  const names = [...new Set((rt.legs[0].steps || []).map(s => s.name).filter(Boolean))].slice(0, 6);
+  sheet(`<div class="big">${fmtT(min)} · ${fmtD(rt.distance)}</div><div class="sub">${MODES.find(m => m[0] === S.mode)[1]} до «${esc(dest.name)}»</div>` + (names.length ? `<div style="margin-top:8px" class="sub">Через: ${names.map(esc).join(' → ')}</div>` : ''));
+}
+
+/* ---------- Overpass ---------- */
+async function overpass(q) {
+  const eps = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+  let err;
+  for (const u of eps) {
+    try {
+      const r = await fetch(u, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'data=' + encodeURIComponent(q)});
+      if (!r.ok) throw new Error('Overpass ' + r.status);
+      return await r.json();
+    } catch (e) { err = e; }
+  }
+  throw err || new Error('Нет связи с сервером данных');
+}
+
+/* ---------- метро ---------- */
+let metro = null, metroLoading = null;
+async function loadMetro() {
+  if (metro) return metro;
+  if (metroLoading) return metroLoading;
+  metroLoading = (async () => {
+    try { const c = localStorage.getItem('novaMetro2'); if (c) { metro = JSON.parse(c); return metro; } } catch (e) {}
+    const bb = '59.6,29.5,60.3,31.0';
+    const j = await overpass(`[out:json][timeout:60];rel["route"="subway"](${bb})->.r;node(r.r)->.n;.r out body;.n out body;node["railway"="subway_entrance"](${bb});out body;`);
+    const nodes = new Map(), rels = [], ent = [];
+    for (const e of j.elements) {
+      if (e.type === 'node') { if (e.tags && e.tags.railway === 'subway_entrance') ent.push([e.lat, e.lon]); else nodes.set(e.id, e); }
+      else if (e.type === 'relation') rels.push(e);
+    }
+    const st = [], idx = new Map(), lines = [], adj = [];
+    const nodeIdx = id => { if (idx.has(id)) return idx.get(id); const n = nodes.get(id); const i = st.length; st.push({name: (n.tags && n.tags.name) || 'Станция', lat: n.lat, lon: n.lon, lines: []}); adj.push([]); idx.set(id, i); return i; };
+    for (const r of rels) {
+      const seq = (r.members || []).filter(m => m.type === 'node' && /^stop/.test(m.role) && nodes.has(m.ref)).map(m => nodeIdx(m.ref));
+      const stops = seq.filter((v, i) => i === 0 || v !== seq[i - 1]);
+      if (stops.length < 2) continue;
+      const t = r.tags || {}, li = lines.length;
+      lines.push({name: t.ref ? 'Линия ' + t.ref : (t.name || 'Линия'), full: t.name || '', color: t.colour || t.color || null, stops});
+      stops.forEach(s => { if (!st[s].lines.includes(li)) st[s].lines.push(li); });
+      for (let i = 1; i < stops.length; i++) {
+        const a = stops[i - 1], b = stops[i];
+        const w = Math.max(1.5, hav(st[a].lat, st[a].lon, st[b].lat, st[b].lon) / 600 + 1.2);
+        adj[a].push({to: b, w, k: 'ride', li}); adj[b].push({to: a, w, k: 'ride', li});
+      }
+    }
+    for (let a = 0; a < st.length; a++) for (let b = a + 1; b < st.length; b++) {
+      const d = hav(st[a].lat, st[a].lon, st[b].lat, st[b].lon);
+      const shared = st[a].lines.some(l => st[b].lines.includes(l));
+      let w = null, k = 'xfer';
+      if (d < 60) { w = shared ? 0 : 0.5; if (shared) k = 'same'; }
+      else if (!shared && d < 450 && st[a].name === st[b].name) w = 3;
+      else if (!shared && d < 350) w = 5;
+      if (w !== null) { adj[a].push({to: b, w, k}); adj[b].push({to: a, w, k}); }
+    }
+    metro = {st, lines, adj, ent};
+    try { localStorage.setItem('novaMetro2', JSON.stringify(metro)); } catch (e) {}
+    return metro;
+  })();
+  try { return await metroLoading; } finally { metroLoading = null; }
+}
+
+function metroPath(M, o, d, maxWalk = 2200) {
+  const n = M.st.length, dist = new Array(n).fill(Infinity), prev = new Array(n).fill(null), done = new Array(n).fill(false);
+  for (let i = 0; i < n; i++) { const w = hav(o.lat, o.lon, M.st[i].lat, M.st[i].lon); if (w < maxWalk) dist[i] = w / WALK + 4; }
+  for (;;) {
+    let u = -1, best = Infinity;
+    for (let i = 0; i < n; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
+    if (u < 0) break; done[u] = true;
+    for (const e of M.adj[u]) { const nd = dist[u] + e.w; if (nd < dist[e.to]) { dist[e.to] = nd; prev[e.to] = {from: u, e}; } }
+  }
+  let end = -1, tot = Infinity;
+  for (let i = 0; i < n; i++) { const w = hav(d.lat, d.lon, M.st[i].lat, M.st[i].lon); if (w < maxWalk && dist[i] + w / WALK < tot) { tot = dist[i] + w / WALK; end = i; } }
+  if (end < 0) return null;
+  const path = []; let c = end;
+  while (c !== null) { const p = prev[c]; path.unshift({i: c, e: p ? p.e : null}); c = p ? p.from : null; }
+  return {path, total: tot, end};
+}
+
+function describeMetro(M, o, d, res) {
+  const {path} = res, first = path[0].i, last = path[path.length - 1].i;
+  const w1 = hav(o.lat, o.lon, M.st[first].lat, M.st[first].lon), w2 = hav(d.lat, d.lon, M.st[last].lat, M.st[last].lon);
+  const steps = []; let cur = null;
+  for (let k = 1; k < path.length; k++) {
+    const e = path[k].e, a = path[k - 1].i, b = path[k].i;
+    if (e.k === 'ride') {
+      if (cur && cur.li === e.li) { cur.to = b; cur.n++; }
+      else { cur = {t: 'ride', li: e.li, from: a, to: b, n: 1}; steps.push(cur); }
+    } else if (e.k === 'xfer') { steps.push({t: 'xfer', from: a, to: b}); cur = null; }
+  }
+  return {w1, w2, steps, first, last};
+}
+
+function drawMetro(M, o, d, ds) {
+  const feats = [], pts = [];
+  feats.push(line([[o.lon, o.lat], [M.st[ds.first].lon, M.st[ds.first].lat]], {dash: true}));
+  feats.push(line([[M.st[ds.last].lon, M.st[ds.last].lat], [d.lon, d.lat]], {dash: true}));
+  const all = [[o.lon, o.lat], [d.lon, d.lat]];
+  for (const s of ds.steps) {
+    if (s.t === 'ride') {
+      const L = M.lines[s.li], a = L.stops.indexOf(s.from), b = L.stops.indexOf(s.to);
+      let seg = a <= b ? L.stops.slice(a, b + 1) : L.stops.slice(b, a + 1).reverse();
+      if (a < 0 || b < 0) seg = [s.from, s.to];
+      const co = seg.map(i => [M.st[i].lon, M.st[i].lat]);
+      feats.push(line(co, {color: L.color || S.accent}));
+      co.forEach(c => all.push(c));
+      seg.forEach(i => pts.push({type: 'Feature', properties: {color: L.color || S.accent}, geometry: {type: 'Point', coordinates: [M.st[i].lon, M.st[i].lat]}}));
+    } else feats.push(line([[M.st[s.from].lon, M.st[s.from].lat], [M.st[s.to].lon, M.st[s.to].lat]], {dash: true}));
+  }
+  setData('route', feats); setData('pts', pts); fit(all);
+}
+
+function metroHtml(M, o, d, ds, total) {
+  const dir = (s) => { const L = M.lines[s.li], a = L.stops.indexOf(s.from), b = L.stops.indexOf(s.to); const t = a <= b ? L.stops[L.stops.length - 1] : L.stops[0]; return M.st[t].name; };
+  let h = `<div class="big">${fmtT(total)}</div><div class="sub">🚇 Метро до «${esc(d.name || dest.name)}»</div><div style="margin-top:8px">`;
+  h += step('#9aa3b2', `Пешком до станции <b>${esc(M.st[ds.first].name)}</b> · ${fmtD(ds.w1)} (~${fmtT(ds.w1 / WALK)})`);
+  for (const s of ds.steps) {
+    if (s.t === 'ride') { const L = M.lines[s.li]; h += step(L.color || 'var(--accent)', `<span class="badge" style="background:${L.color || 'var(--accent)'}">${esc(L.name.replace('Линия ', ''))}</span> <b>${esc(M.st[s.from].name)}</b> → <b>${esc(M.st[s.to].name)}</b><div class="sub">${s.n} ${s.n === 1 ? 'перегон' : 'перегонов'}, в сторону «${esc(dir(s))}»</div>`); }
+    else h += step('#9aa3b2', `Пересадка: ${esc(M.st[s.from].name)} → ${esc(M.st[s.to].name)}`);
+  }
+  h += step('#ef4444', `Выход на <b>${esc(M.st[ds.last].name)}</b>, пешком до цели · ${fmtD(ds.w2)} (~${fmtT(ds.w2 / WALK)})`);
+  return h + '</div><div class="sub" style="margin-top:6px">Время ориентировочное, без учёта интервалов движения.</div>';
+}
+
+async function routeMetro(o) {
+  toast('Загружаю схему метро…', 2500);
+  const M = await loadMetro();
+  if (!M.st.length) throw new Error('Данные метро недоступны');
+  const res = metroPath(M, o, dest);
+  if (!res) { sheet('<div class="big">Метро далеко</div><div class="sub">В радиусе ~2 км от старта или цели нет станций. Выберите другой способ.</div>'); return; }
+  const direct = hav(o.lat, o.lon, dest.lat, dest.lon) / WALK;
+  const ds = describeMetro(M, o, dest, res);
+  if (!ds.steps.length) { sheet('<div class="big">Метро не нужно</div><div class="sub">Станции у старта и цели совпадают, проще дойти пешком (~' + fmtT(direct) + ').</div>'); return; }
+  drawMetro(M, o, dest, ds);
+  sheet(metroHtml(M, o, dest, ds, res.total) + (direct < res.total ? `<div class="sub" style="margin-top:6px">⚠️ Пешком выйдет быстрее: ~${fmtT(direct)}.</div>` : ''));
+}
+
+/* ---------- «я у входа в метро» ---------- */
+let metroSeen = {};
+async function checkMetro() {
+  if (!me) return;
+  let M = metro;
+  if (!M) { if (!checkMetro.started) { checkMetro.started = true; loadMetro().then(() => checkMetro()).catch(() => { checkMetro.started = false; }); } return; }
+  let near = null, nd = 1e9;
+  for (const e of M.ent) { const d = hav(me.lat, me.lon, e[0], e[1]); if (d < nd) nd = d; }
+  if (nd > 70) { // запасной вариант: сама станция
+    nd = 1e9; M.st.forEach((s, i) => { const d = hav(me.lat, me.lon, s.lat, s.lon); if (d < nd) { nd = d; near = i; } });
+    if (nd > 100) return;
+  } else { let bd = 1e9; M.st.forEach((s, i) => { const d = hav(me.lat, me.lon, s.lat, s.lon); if (d < bd) { bd = d; near = i; } }); }
+  showMetroSheet(near, false);
+}
+function showMetroSheet(i, force) {
+  const M = metro; if (i == null || !M) return;
+  const key = M.st[i].name;
+  if (!force && metroSeen[key] && Date.now() - metroSeen[key] < 300000) return;
+  metroSeen[key] = Date.now();
+  const s = M.st[i]; let h = `<button class="x" id="mx">×</button><div class="big">🚇 Вы у метро «${esc(s.name)}»</div>`;
+  if (dest) {
+    const p = metroPath(M, {lat: s.lat, lon: s.lon, name: ''}, dest, 1500);
+    if (p) {
+      const from = {lat: s.lat, lon: s.lon};
+      const ds = describeMetro(M, from, dest, {path: p.path, total: p.total});
+      h += `<div class="sub">Маршрут до «${esc(dest.name)}»:</div>` + metroHtml(M, from, dest, ds, p.total - 4);
+      drawMetro(M, from, dest, ds);
+    } else h += '<div class="sub">До выбранной цели от этой станции маршрут не найден.</div>';
+  } else {
+    h += '<div class="sub">Выберите цель в поиске, и я покажу маршрут от этой станции. Станции ваших линий:</div>';
+    s.lines.slice(0, 3).forEach(li => { const L = M.lines[li]; h += `<div style="margin-top:8px"><span class="badge" style="background:${L.color || 'var(--accent)'}">${esc(L.name.replace('Линия ', ''))}</span> <span class="sub">${esc(L.full)}</span></div><div style="font-size:13px">${L.stops.map(k => k === i ? `<b style="color:var(--accent)">${esc(M.st[k].name)}</b>` : esc(M.st[k].name)).join(' → ')}</div>`; });
+  }
+  const m = $('#metro'); m.innerHTML = h; m.classList.add('on'); $('#mx').onclick = () => m.classList.remove('on');
+}
+$('#testMetro').onclick = async () => {
+  tab('nav'); toast('Загружаю метро…', 2500);
+  try { const M = await loadMetro(); const c = me || map.getCenter() && {lat: map.getCenter().lat, lon: map.getCenter().lng}; let b = 0, bd = 1e9; M.st.forEach((s, i) => { const d = hav(c.lat, c.lon, s.lat, s.lon); if (d < bd) { bd = d; b = i; } }); showMetroSheet(b, true); } catch (e) { toast('Не удалось загрузить метро'); }
+};
+$('#clearCache').onclick = () => { try { localStorage.removeItem('novaMetro2'); } catch (e) {} metro = null; toast('Кэш метро сброшен'); };
+
+/* ---------- наземный транспорт ---------- */
+async function routeBus(o) {
+  const R = 700, a = `${o.lat},${o.lon}`, b = `${dest.lat},${dest.lon}`;
+  const q = `[out:json][timeout:50];
+(node(around:${R},${a})["highway"="bus_stop"];node(around:${R},${a})["public_transport"="platform"];)->.sa;
+(node(around:${R},${b})["highway"="bus_stop"];node(around:${R},${b})["public_transport"="platform"];)->.sb;
+rel(bn.sa)["route"~"^(bus|tram|trolleybus)$"]->.ra;
+rel(bn.sb)["route"~"^(bus|tram|trolleybus)$"]->.rb;
+rel.ra.rb->.x;
+.x out body;
+node(r.x)->.n;
+.n out body;`;
+  const j = await overpass(q);
+  const nodes = new Map(); j.elements.filter(e => e.type === 'node').forEach(e => nodes.set(e.id, e));
+  const cands = [];
+  for (const r of j.elements.filter(e => e.type === 'relation')) {
+    const seq = (r.members || []).filter(m => m.type === 'node' && /^(stop|platform)/.test(m.role) && nodes.has(m.ref)).map(m => nodes.get(m.ref));
+    const stops = seq.filter((v, i) => i === 0 || v.id !== seq[i - 1].id);
+    let ia = -1, da = 1e9, ib = -1, db = 1e9;
+    stops.forEach((s, i) => { const d1 = hav(o.lat, o.lon, s.lat, s.lon), d2 = hav(dest.lat, dest.lon, s.lat, s.lon); if (d1 < da) { da = d1; ia = i; } if (d2 < db) { db = d2; ib = i; } });
+    if (ia < 0 || ib <= ia || da > R || db > R) continue;
+    const seg = stops.slice(ia, ib + 1);
+    let len = 0; for (let i = 1; i < seg.length; i++) len += hav(seg[i - 1].lat, seg[i - 1].lon, seg[i].lat, seg[i].lon);
+    const t = r.tags || {}, type = t.route;
+    const speed = type === 'tram' ? 280 : 240; // м/мин в среднем с остановками
+    const total = da / WALK + 5 + len / speed + db / WALK;
+    cands.push({ref: t.ref || t.name || '?', type, from: t.from, to: t.to, seg, da, db, n: seg.length - 1, total});
+  }
+  const best = new Map();
+  cands.sort((x, y) => x.total - y.total).forEach(c => { const k = c.type + c.ref; if (!best.has(k)) best.set(k, c); });
+  const list = [...best.values()].slice(0, 6);
+  if (!list.length) { sheet('<div class="big">Прямых маршрутов нет</div><div class="sub">В радиусе ~700 м от старта и цели не нашлось маршрута автобуса, трамвая или троллейбуса без пересадок. Попробуйте метро или выберите другую точку.</div>'); return; }
+  const icon = {bus: '🚌', tram: '🚋', trolleybus: '🚎'};
+  const draw = c => {
+    const co = c.seg.map(s => [s.lon, s.lat]);
+    setData('route', [line([[o.lon, o.lat], co[0]], {dash: true}), line(co), line([co[co.length - 1], [dest.lon, dest.lat]], {dash: true})]);
+    setData('pts', c.seg.map(s => ({type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: [s.lon, s.lat]}})));
+    fit([[o.lon, o.lat], [dest.lon, dest.lat], ...co]);
+  };
+  const render = (sel) => {
+    const s = $('#sheet'); s.classList.add('on');
+    s.innerHTML = '<button class="x" id="shx">×</button><div class="big">Наземный транспорт</div><div class="sub">Без пересадок, время ориентировочное (без реальных интервалов)</div>' +
+      list.map((c, i) => `<div class="step" data-i="${i}" style="cursor:pointer;${i === sel ? 'background:var(--chip);border-radius:10px;padding:8px' : ''}"><span class="dot"></span><div><span class="badge">${icon[c.type] || ''} ${esc(c.ref)}</span> <b>~${fmtT(c.total)}</b><div class="sub">Сесть: ${esc(c.seg[0].tags && c.seg[0].tags.name || 'остановка')} (${fmtD(c.da)} пешком)<br>Выйти: ${esc(c.seg[c.seg.length - 1].tags && c.seg[c.seg.length - 1].tags.name || 'остановка')}, ${c.n} ост., потом ${fmtD(c.db)}${c.to ? '<br>Направление: ' + esc(c.to) : ''}</div></div></div>`).join('');
+    $('#shx').onclick = () => s.classList.remove('on');
+    s.querySelectorAll('.step').forEach(el => el.onclick = () => { const i = +el.dataset.i; draw(list[i]); render(i); });
+  };
+  draw(list[0]); render(0);
+}
+
+/* ---------- поиск адресов ---------- */
+let qt;
+$('#q').addEventListener('input', () => { clearTimeout(qt); const v = $('#q').value.trim(); if (v.length < 3) { $('#qres').innerHTML = ''; return; } qt = setTimeout(() => doSearch(v), 600); });
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(qt); const v = $('#q').value.trim(); if (v) doSearch(v); } });
+async function doSearch(v) {
+  const box = $('#qres'); box.innerHTML = '<div class="empty">Ищу…</div>';
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&accept-language=ru&viewbox=27.8,61.4,35.9,58.4&bounded=1&q=' + encodeURIComponent(v));
+    const j = await r.json();
+    if (!j.length) { box.innerHTML = '<div class="empty">Ничего не найдено в СПб и Ленобласти</div>'; return; }
+    box.innerHTML = j.map((p, i) => `<div class="item" data-i="${i}"><b>${esc(p.name || p.display_name.split(',')[0])}</b><span class="sub">${esc(p.display_name.split(',').slice(1, 4).join(','))}</span></div>`).join('');
+    box.onclick = e => { const it = e.target.closest('.item'); if (!it) return; const p = j[+it.dataset.i]; setDest(+p.lat, +p.lon, p.name || p.display_name.split(',')[0], true); if (map) map.easeTo({center: [+p.lon, +p.lat], duration: 600}); };
+  } catch (e) { box.innerHTML = '<div class="empty">Ошибка поиска. Проверьте интернет.</div>'; }
+}
+
+/* ---------- интересные места (ИИ) ---------- */
+const CATS = {
+  cafe: ['Кафе', '"amenity"="cafe"'], restaurant: ['Ресторан', '"amenity"="restaurant"'], fastfood: ['Фастфуд', '"amenity"="fast_food"'], bar: ['Бар / паб', '"amenity"~"^(bar|pub)$"'],
+  park: ['Парк / сквер', '"leisure"~"^(park|garden)$"'], museum: ['Музей', '"tourism"="museum"'], attraction: ['Достопримечательность', '"tourism"="attraction"'], viewpoint: ['Смотровая', '"tourism"="viewpoint"'],
+  cinema: ['Кино', '"amenity"="cinema"'], theatre: ['Театр', '"amenity"="theatre"'], pharmacy: ['Аптека', '"amenity"="pharmacy"'], supermarket: ['Магазин продуктов', '"shop"~"^(supermarket|convenience)$"'],
+  mall: ['Торговый центр', '"shop"="mall"'], gym: ['Спорт / фитнес', '"leisure"~"^(fitness_centre|sports_centre|swimming_pool)$"'], library: ['Библиотека', '"amenity"="library"'],
+  beach: ['Пляж', '"natural"="beach"'], hotel: ['Отель', '"tourism"~"^(hotel|hostel|guest_house)$"'], church: ['Храм / собор', '"amenity"="place_of_worship"'], playground: ['Детская площадка', '"leisure"="playground"'],
+  bakery: ['Пекарня', '"shop"="bakery"'], atm: ['Банкомат / банк', '"amenity"~"^(atm|bank)$"'], fuel: ['АЗС', '"amenity"="fuel"'], toilet: ['Туалет', '"amenity"="toilets"'], gallery: ['Галерея', '"tourism"="gallery"']
+};
+const KW = [
+  [/кафе|кофе|капучино|кофейн|посидеть|поработать/i, 'cafe'], [/ресторан|поужина|пообеда|обед|ужин|покуш|поесть|еда|еды/i, 'restaurant'], [/фастфуд|быстро перекус|бургер|шаурм/i, 'fastfood'],
+  [/бар|пиво|паб|выпить|коктейл/i, 'bar'], [/парк|сквер|погуля|прогул|природ|сад/i, 'park'], [/музе|выставк|искусств/i, 'museum'], [/достопримеч|интересн|красив|сходить|туристи|экскурс/i, 'attraction'],
+  [/вид|панорам|смотров|закат|крыш/i, 'viewpoint'], [/кино|фильм/i, 'cinema'], [/театр|спектакл|опер|балет/i, 'theatre'], [/аптек|лекарств/i, 'pharmacy'], [/магазин|продукт|супермаркет/i, 'supermarket'],
+  [/торгов|молл|шопинг/i, 'mall'], [/спорт|фитнес|бассейн|трениров|качалк/i, 'gym'], [/библиотек|почитать/i, 'library'], [/пляж|искупа|купаться/i, 'beach'], [/отел|гостиниц|хостел|переночева/i, 'hotel'],
+  [/церк|храм|собор|мечеть/i, 'church'], [/детск|ребён|ребен|дет[иь]/i, 'playground'], [/пекарн|булочн|выпечк/i, 'bakery'], [/банк|банкомат|снять налич/i, 'atm'], [/заправк|бензин|азс/i, 'fuel'], [/туалет/i, 'toilet'], [/галере/i, 'gallery']
+];
+function localParse(t) {
+  const set = []; KW.forEach(([re, id]) => { if (re.test(t) && !set.includes(id)) set.push(id); });
+  if (!set.length) set.push('attraction', 'park', 'cafe');
+  return {ids: set.slice(0, 4), wifi: /wi-?fi|вай-?фай|интернет/i.test(t), reason: 'Подобрано по ключевым словам (ИИ-ключ не указан).'};
+}
+async function aiParse(t) {
+  if (!S.key) return localParse(t);
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'content-type': 'application/json', 'x-api-key': S.key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true'},
+      body: JSON.stringify({
+        model: 'claude-haiku-5-5', max_tokens: 300,
+        system: 'Ты подбираешь типы мест для карты. Допустимые id: ' + Object.keys(CATS).join(', ') + '. Верни ТОЛЬКО JSON вида {"ids":["id1","id2"],"wifi":false,"reason":"одно короткое предложение по-русски"}. От 1 до 4 id, только из списка.',
+        messages: [{role: 'user', content: t}]
+      })
+    });
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json(); const txt = j.content[0].text; const o = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
+    const ids = (o.ids || []).filter(i => CATS[i]).slice(0, 4);
+    if (!ids.length) throw new Error('empty');
+    return {ids, wifi: !!o.wifi, reason: String(o.reason || '').slice(0, 200)};
+  } catch (e) { const l = localParse(t); l.reason = 'ИИ недоступен (проверьте ключ), использован подбор по словам.'; return l; }
+}
+$('#aichips').innerHTML = ['Тихое кафе с wifi', 'Где погулять', 'Интересные музеи', 'Вид на закат', 'Поесть недорого', 'С детьми'].map(t => `<button>${t}</button>`).join('');
+$('#aichips').onclick = e => { const b = e.target.closest('button'); if (b) { $('#aiq').value = b.textContent; $('#aigo').click(); } };
+$('#aigo').onclick = async () => {
+  const t = $('#aiq').value.trim(); if (!t) return;
+  const st = $('#aistate'), res = $('#aires'); st.textContent = 'Думаю…'; res.innerHTML = '';
+  const p = await aiParse(t);
+  const c = map ? map.getCenter() : {lat: 59.9386, lng: 30.3141};
+  st.textContent = (p.reason ? p.reason + ' ' : '') + 'Ищу: ' + p.ids.map(i => CATS[i][0]).join(', ') + '…';
+  const around = `(around:2500,${c.lat},${c.lng})`;
+  const parts = p.ids.map(i => `nwr${around}[${CATS[i][1]}]["name"]${p.wifi ? '["internet_access"~"wlan|wifi|yes"]' : ''};`).join('');
+  try {
+    const j = await overpass(`[out:json][timeout:30];(${parts});out center 60;`);
+    const items = j.elements.map(e => ({name: e.tags.name, lat: e.lat || (e.center && e.center.lat), lon: e.lon || (e.center && e.center.lon), tags: e.tags})).filter(e => e.lat && e.name)
+      .map(e => (e.d = hav(c.lat, c.lng, e.lat, e.lon), e)).sort((a, b) => a.d - b.d).slice(0, 25);
+    if (!items.length) { st.textContent = 'Рядом с центром карты ничего не нашлось. Подвиньте карту в другой район и повторите.'; return; }
+    st.textContent = (p.reason ? p.reason + ' ' : '') + 'Найдено рядом с центром карты: ' + items.length;
+    const kind = tg => { for (const i of p.ids) { const m = CATS[i][1].match(/"([^"]+)"~?=?"?\^?\(?([^")$]*)/); } return ''; };
+    res.innerHTML = items.map((e, i) => `<div class="item" data-i="${i}"><b>${esc(e.name)}</b><span class="sub">${fmtD(e.d)} от центра карты${e.tags.opening_hours ? ' · ' + esc(e.tags.opening_hours.slice(0, 40)) : ''}${e.tags['addr:street'] ? ' · ' + esc(e.tags['addr:street'] + (e.tags['addr:housenumber'] ? ' ' + e.tags['addr:housenumber'] : '')) : ''}</span></div>`).join('');
+    res.onclick = ev => { const it = ev.target.closest('.item'); if (!it) return; const e = items[+it.dataset.i]; setDest(e.lat, e.lon, e.name, true); };
+  } catch (e) { st.textContent = 'Ошибка поиска мест. Проверьте интернет.'; }
+};
+
+/* ---------- светофор (демо) ---------- */
+function lightTick() {
+  const T = 60, t = (Date.now() / 1000) % T; let c, left;
+  if (t < 28) { c = '#16a34a'; left = 28 - t; } else if (t < 31) { c = '#eab308'; left = 31 - t; } else { c = '#e11d48'; left = T - t; }
+  $('#lightDot').style.background = c; $('#lightSec').textContent = Math.ceil(left) + ' с';
+}
+function applyLight() { $('#light').classList.toggle('on', !!S.light); }
+setInterval(() => { if (S.light) lightTick(); }, 500);
+
+/* ---------- настройки ---------- */
+$('#opt3d').checked = S.d3; $('#optLight').checked = S.light; $('#apikey').value = S.key;
+$('#opt3d').onchange = e => { S.d3 = e.target.checked; save(); if (map) map.easeTo({pitch: S.d3 ? 60 : 0, duration: 600}); };
+$('#optLight').onchange = e => { S.light = e.target.checked; save(); applyLight(); };
+$('#apikey').onchange = e => { S.key = e.target.value.trim(); save(); toast(S.key ? 'Ключ сохранён' : 'Ключ удалён'); };
+
+/* ---------- старт ---------- */
+applyTheme(); markModes(); applyLight();
+initMap(); startGeo();
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
