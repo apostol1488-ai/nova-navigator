@@ -11,731 +11,1399 @@
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <style>
-:root{--bg:#fff;--card:#fff;--text:#14171c;--muted:#6b7380;--line:#e6e8ec;--chip:#f1f3f5;--accent:#22c55e;--tab:64px}
-[data-theme=dark]{--bg:#0f1115;--card:#181b21;--text:#f2f4f7;--muted:#9aa3b2;--line:#2a2f38;--chip:#232831}
+:root{--bg:#f2f4f7;--surf:#fff;--blur:none;--text:#10141a;--muted:#667085;--line:rgba(16,24,40,.09);--chip:#eef1f5;--accent:#22c55e;--sline:rgba(16,24,40,.06);--sh:0 10px 34px rgba(16,24,40,.16);--vbg:#f2f4f7;--r:20px;--nav:60px;--sb:env(safe-area-inset-bottom);--st:env(safe-area-inset-top);--red:#ef4444}
+[data-theme=dark]{--bg:#0e1116;--surf:#181c23;--text:#f3f5f8;--muted:#9aa4b2;--line:rgba(255,255,255,.09);--chip:#242a33;--sline:rgba(255,255,255,.06);--sh:0 10px 34px rgba(0,0,0,.55);--vbg:#0e1116}
+[data-style=glass]{--surf:rgba(255,255,255,.5);--blur:blur(22px) saturate(190%);--sline:rgba(255,255,255,.7);--vbg:rgba(244,246,250,.5);--chip:rgba(255,255,255,.5);--line:rgba(16,24,40,.1);--sh:0 10px 40px rgba(16,24,40,.2),inset 0 1px 0 rgba(255,255,255,.75)}
+[data-style=glass][data-theme=dark]{--surf:rgba(26,30,38,.5);--sline:rgba(255,255,255,.17);--vbg:rgba(14,17,22,.5);--chip:rgba(255,255,255,.1);--line:rgba(255,255,255,.12);--sh:0 10px 40px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.14)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
-#map{position:absolute;left:0;right:0;top:0;bottom:calc(var(--tab) + env(safe-area-inset-bottom))}
-[data-theme=dark] #map .maplibregl-canvas{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.92)}
-.maplibregl-ctrl-bottom-left,.maplibregl-ctrl-bottom-right{opacity:.7}
-#tabbar{position:fixed;left:0;right:0;bottom:0;height:calc(var(--tab) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--card);border-top:1px solid var(--line);display:flex;z-index:30}
-#tabbar button{flex:1;border:0;background:none;color:var(--muted);font:inherit;font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
-#tabbar button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-#tabbar button.on{color:var(--accent);font-weight:600}
-.view{position:absolute;left:0;right:0;top:0;bottom:calc(var(--tab) + env(safe-area-inset-bottom));background:var(--bg);overflow:auto;display:none;z-index:20;padding:16px 16px 24px}
-.view.on{display:block}
-h2{margin:4px 0 12px;font-size:22px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;box-shadow:0 4px 18px rgba(0,0,0,.12)}
-#navUI{position:absolute;left:0;right:0;top:0;bottom:calc(var(--tab) + env(safe-area-inset-bottom));pointer-events:none;z-index:10}
-#navUI>*{pointer-events:auto}
-#top{position:absolute;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top))}
-.row{display:flex;gap:8px;align-items:center}
-.pill{flex:1;border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:12px;padding:10px 12px;font:inherit;text-align:left;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pill.muted{color:var(--muted)}
-#modes{display:flex;gap:6px;margin-top:8px;overflow-x:auto;scrollbar-width:none}
-#modes button{flex:none;border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:20px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
-#modes button.on{background:var(--accent);border-color:var(--accent);color:#fff}
-#locate{position:absolute;right:12px;bottom:12px;width:46px;height:46px;border-radius:50%;border:0;background:var(--card);color:var(--accent);box-shadow:0 3px 12px rgba(0,0,0,.25);font-size:20px;cursor:pointer}
-#locate svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2}
-#sheet{position:absolute;left:10px;right:70px;bottom:10px;max-height:46vh;overflow:auto;display:none}
-#sheet.on{display:block}
-#metro{position:absolute;left:10px;right:10px;bottom:10px;max-height:52vh;overflow:auto;display:none;z-index:15}
-#metro.on{display:block}
-.x{float:right;border:0;background:var(--chip);color:var(--text);width:28px;height:28px;border-radius:50%;font-size:16px;cursor:pointer}
-.big{font-size:18px;font-weight:700}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,"SF Pro Text",Inter,Roboto,"Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+#map{position:fixed;inset:0;user-select:none;-webkit-user-select:none}
+.surf{background:var(--surf);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--sline);box-shadow:var(--sh);border-radius:var(--r)}
+.big{font-size:19px;font-weight:700;letter-spacing:-.2px}
 .sub{color:var(--muted);font-size:13px}
-.step{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line);align-items:flex-start}
-.step:first-of-type{border-top:0}
-.dot{flex:none;width:12px;height:12px;border-radius:50%;margin-top:5px;background:var(--accent)}
-.badge{display:inline-block;padding:1px 8px;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;font-size:13px;margin-right:4px}
-input[type=text],input[type=password],textarea{width:100%;border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:12px;padding:12px;font:inherit;outline:none}
-input:focus,textarea:focus{border-color:var(--accent)}
-.btn{border:0;background:var(--accent);color:#fff;border-radius:12px;padding:11px 16px;font:inherit;font-weight:600;cursor:pointer}
+.btn{background:var(--accent);color:#fff;border-radius:14px;padding:12px 16px;font-weight:650;transition:transform .15s,opacity .2s}
+.btn:active{transform:scale(.96)}
 .btn.ghost{background:var(--chip);color:var(--text)}
-.item{padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer}
-.item b{display:block}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
-.chips button{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:18px;padding:6px 11px;font:inherit;font-size:13px;cursor:pointer}
-.set{padding:12px 0;border-bottom:1px solid var(--line)}
-.set label{display:block;font-weight:600;margin-bottom:8px}
-.seg{display:flex;gap:6px}
-.seg button{flex:1;border:1px solid var(--line);background:var(--chip);color:var(--text);padding:9px;border-radius:10px;font:inherit;cursor:pointer}
-.seg button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-.sw{display:flex;gap:10px;flex-wrap:wrap}
-.sw button{width:38px;height:38px;border-radius:50%;border:3px solid transparent;cursor:pointer}
-.sw button.on{border-color:var(--text)}
-.toggle{display:flex;justify-content:space-between;align-items:center}
-.toggle input{width:44px;height:24px;accent-color:var(--accent)}
-#toast{position:fixed;left:50%;top:calc(80px + env(safe-area-inset-top));transform:translateX(-50%);background:#111c;color:#fff;padding:8px 14px;border-radius:18px;font-size:13px;z-index:50;display:none;max-width:90%;text-align:center}
-#light{position:absolute;right:12px;top:calc(130px + env(safe-area-inset-top));background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 8px;display:none;align-items:center;gap:8px;box-shadow:0 3px 12px rgba(0,0,0,.2);text-align:center}
-#light.on{display:flex}
-#light i{display:block;width:26px;height:26px;border-radius:50%;background:#e11d48}
-#light small{display:block;font-size:9px;color:var(--muted)}
-#light b{font-size:16px}
-.me{width:30px;height:30px}
-.me svg{width:30px;height:30px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
-.pin{width:22px;height:22px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#ef4444;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)}
-.empty{color:var(--muted);padding:20px 4px;text-align:center}
-#navBanner{position:absolute;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));display:none;align-items:center;gap:14px;background:var(--accent);color:#fff;border:0}
-#navBanner.on{display:flex}
-#navBanner .arr{font-size:46px;line-height:1;width:56px;text-align:center;flex:none}
-#navBanner .big{font-size:26px}
-#navBar{position:absolute;left:10px;right:70px;bottom:10px;display:none;align-items:center;gap:8px}
-#navBar.on{display:flex}
-#navBar>div{flex:1;min-width:0}
-#viewBtn{position:absolute;right:12px;bottom:66px;width:46px;height:46px;border-radius:50%;border:0;background:var(--card);color:var(--accent);font:700 15px system-ui,sans-serif;box-shadow:0 3px 12px rgba(0,0,0,.25);cursor:pointer}
+.btn.red{background:var(--red)}
+.ic{width:38px;height:38px;border-radius:12px;background:var(--chip);display:inline-flex;align-items:center;justify-content:center;font-size:17px;flex:none;transition:transform .15s}
+.ic:active{transform:scale(.9)}
+.x{width:30px;height:30px;border-radius:50%;background:var(--chip);font-size:17px;flex:none;line-height:30px;text-align:center}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:9px;background:var(--accent);color:#fff;font-weight:700;font-size:13px;white-space:nowrap}
+.row{display:flex;gap:8px;align-items:center}
+.empty{color:var(--muted);padding:22px 6px;text-align:center}
+input[type=text]{width:100%;border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:14px;padding:13px 14px;font:inherit;outline:none;transition:border-color .2s,box-shadow .2s}
+input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+/* верх */
+#navUI{position:fixed;inset:0;pointer-events:none;z-index:10;transition:opacity .3s}
+#navUI>*{pointer-events:auto}
+body:not(.tab-nav) #navUI{opacity:0}
+body:not(.tab-nav) #navUI>*{pointer-events:none}
+#top{position:absolute;left:12px;right:12px;top:calc(12px + var(--st));padding:10px;transition:transform .35s cubic-bezier(.3,1,.4,1),opacity .25s}
+.trow{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.td{width:12px;height:12px;border-radius:50%;flex:none;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.25)}
+.td.r{background:var(--red);box-shadow:0 0 0 3px rgba(239,68,68,.25)}
+.pill{flex:1;min-width:0;text-align:left;background:var(--chip);border-radius:13px;padding:10px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .2s}
+.pill.muted{color:var(--muted)}
+#modes{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;position:relative}
+#modes button{flex:1;white-space:nowrap;background:var(--chip);border-radius:20px;padding:8px 10px;font-size:13px;font-weight:550;transition:background .25s,color .25s,transform .2s}
+#modes button.on{background:var(--accent);color:#fff;transform:scale(1.03)}
+#side{position:absolute;right:12px;top:calc(172px + var(--st));display:flex;flex-direction:column;gap:10px;transition:opacity .25s,transform .3s}
+.fab{width:46px;height:46px;border-radius:50%;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--accent);transition:transform .15s}
+.fab:active{transform:scale(.9)}
+.fab svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#compBtn svg{transition:transform .2s}
+#speedo{position:absolute;left:12px;top:calc(172px + var(--st));min-width:64px;padding:8px 12px;text-align:center;display:none;flex-direction:column;line-height:1.05}
+#speedo.on{display:flex;animation:pop .3s}
+#speedo b{font-size:26px;font-variant-numeric:tabular-nums}
+#speedo span{font-size:11px;color:var(--muted)}
+/* нижние панели */
+.sheet{position:absolute;left:12px;right:12px;bottom:calc(var(--nav) + 22px + var(--sb));max-height:52vh;overflow:auto;padding:12px 14px;transform:translateY(30px) scale(.98);opacity:0;visibility:hidden;transition:transform .35s cubic-bezier(.3,1,.4,1),opacity .25s,visibility 0s .35s;overscroll-behavior:contain}
+.sheet.on{transform:none;opacity:1;visibility:visible;transition-delay:0s}
+.grab{width:38px;height:4px;border-radius:2px;background:var(--line);margin:-4px auto 8px;cursor:pointer}
+.rhead{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:6px}
+.opts{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.o{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 12px;border-radius:14px;background:var(--chip);border:2px solid transparent;transition:border-color .2s,background .2s,transform .15s;animation:pop .3s both}
+.o:active{transform:scale(.985)}
+.o.sel{border-color:var(--accent)}
+.o .ch{display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-width:0}
+.o .tm{text-align:right;flex:none}
+.o .tm b{font-size:17px}
+.steps{margin-top:6px}
+.step{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line);align-items:flex-start}
+.step:first-child{border-top:0}
+.step .si{flex:none;width:28px;height:28px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:14px}
+.acts{display:flex;gap:8px;margin-top:10px;position:sticky;bottom:-12px;padding:8px 0 0}
+.acts .btn{flex:1}
+.note{font-size:13px;color:var(--muted);padding:6px 0;display:flex;gap:8px;align-items:center}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent);animation:rot .8s linear infinite;flex:none}
+@keyframes rot{to{transform:rotate(360deg)}}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+.retry{color:var(--accent);font-weight:650;text-decoration:underline}
+/* навигация */
+#navBanner{position:absolute;left:12px;right:12px;top:calc(12px + var(--st));padding:12px 14px;display:flex;gap:14px;align-items:center;background:var(--accent);color:#fff;border-color:transparent;transform:translateY(-130%);transition:transform .4s cubic-bezier(.3,1,.4,1)}
+#navBanner .arr{font-size:44px;line-height:1;width:54px;text-align:center;flex:none}
+#navBanner .big{font-size:27px}
+#navBanner .sub{color:rgba(255,255,255,.85)}
+body.navmode #navBanner{transform:none}
+body.navmode #top,body.navmode #rsheet,body.navmode #poi{opacity:0;pointer-events:none;transform:translateY(-130%)}
+body.navmode #rsheet{transform:translateY(40px)}
+body.navmode #speedo,body.navmode #side{top:calc(122px + var(--st))}
+#navBar{position:absolute;left:12px;right:12px;bottom:calc(var(--nav) + 22px + var(--sb));padding:10px 12px;display:flex;align-items:center;gap:10px;transform:translateY(160%);opacity:0;visibility:hidden;transition:transform .4s cubic-bezier(.3,1,.4,1),opacity .3s,visibility 0s .4s}
+body.navmode #navBar{transform:none;opacity:1;visibility:visible;transition-delay:0s}
+#navBar .nbi{flex:1;min-width:0}
+/* выбор на карте */
+#crosshair{position:fixed;left:50%;top:50%;width:0;height:0;z-index:12;display:none;pointer-events:none}
+body.picking #crosshair{display:block}
+.cpin{position:absolute;left:-17px;top:-46px;width:34px;height:46px;animation:drop .35s cubic-bezier(.3,1.6,.5,1)}
+.cpin:before{content:"";position:absolute;left:3px;top:0;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--accent);border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.cpin:after{content:"";position:absolute;left:12px;top:9px;width:10px;height:10px;border-radius:50%;background:#fff}
+@keyframes drop{from{transform:translateY(-14px);opacity:0}to{transform:none;opacity:1}}
+body.picking #top,body.picking #side,body.picking #rsheet,body.picking #poi{opacity:0;pointer-events:none}
+.opt{display:flex;gap:8px;margin-top:10px}
+.opt>*{flex:1}
+/* маркеры */
+.pin{width:24px;height:24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--red);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.45);animation:drop .35s}
+.pin.g{background:#22c55e}
+.pin.y{background:#f59e0b}
+.me{width:40px;height:40px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
+.vb{background:var(--vc,#2563eb);color:#fff;font-weight:800;font-size:12px;padding:3px 8px;border-radius:10px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);white-space:nowrap}
+/* панели-экраны */
+.view{position:fixed;inset:0;z-index:20;background:var(--vbg);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);overflow:auto;padding:calc(16px + var(--st)) 14px calc(var(--nav) + 40px + var(--sb));opacity:0;visibility:hidden;transform:translateY(18px) scale(.99);transition:opacity .28s,transform .35s cubic-bezier(.3,1,.4,1),visibility 0s .35s}
+.view.on{opacity:1;visibility:visible;transform:none;transition-delay:0s}
+.view h2{margin:2px 0 14px;font-size:26px;letter-spacing:-.4px}
+.vhead{display:flex;align-items:center;justify-content:space-between}
+.grp{padding:4px 14px;margin-bottom:14px}
+.set{padding:13px 0;border-bottom:1px solid var(--line)}
+.set:last-child{border-bottom:0}
+.set>label{display:block;font-weight:650;margin-bottom:9px}
+.set.tog{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.set.tog>label{margin:0}
+.seg{display:flex;gap:4px;background:var(--chip);padding:4px;border-radius:14px;position:relative}
+.seg button{flex:1;padding:8px 6px;border-radius:11px;font-weight:550;transition:background .25s,color .25s,box-shadow .25s}
+.seg button.on{background:var(--surf);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+[data-style=glass] .seg button.on{background:rgba(255,255,255,.55)}
+[data-theme=dark] .seg button.on{background:#323a46}
+.sw{display:flex;gap:11px;flex-wrap:wrap}
+.sw button{width:38px;height:38px;border-radius:50%;border:3px solid transparent;transition:transform .2s,border-color .2s}
+.sw button.on{border-color:var(--text);transform:scale(1.12)}
+.tg{position:relative;width:50px;height:30px;flex:none}
+.tg input{opacity:0;position:absolute;inset:0;width:100%;height:100%;margin:0;z-index:1;cursor:pointer}
+.tg i{position:absolute;inset:0;border-radius:15px;background:var(--line);transition:background .25s}
+.tg i:after{content:"";position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.3);transition:transform .25s cubic-bezier(.3,1.4,.5,1)}
+.tg input:checked+i{background:var(--accent)}
+.tg input:checked+i:after{transform:translateX(20px)}
+.arrows{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.arrows button{aspect-ratio:1;border-radius:14px;background:var(--chip);border:2px solid transparent;display:flex;align-items:center;justify-content:center;transition:border-color .2s,transform .2s}
+.arrows button.on{border-color:var(--accent);transform:scale(1.06)}
+.arrows svg{width:78%;height:78%}
+.pbar{height:8px;border-radius:4px;background:var(--chip);overflow:hidden;margin:8px 0}
+.pbar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.li{display:flex;gap:12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line);animation:pop .3s both}
+.li:active{background:var(--chip)}
+.li .lt{flex:1;min-width:0}
+.li .lt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .li-i{width:40px;height:40px;border-radius:13px;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+.chips button{background:var(--chip);border-radius:18px;padding:7px 13px;font-size:13.5px;font-weight:550;transition:transform .15s,background .2s}
+.chips button:active{transform:scale(.94)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.tile{padding:14px;text-align:left;display:flex;flex-direction:column;gap:2px}
+.tile:active{transform:scale(.97)}
+/* схема метро */
+#v-metro{display:flex;flex-direction:column}
+#schemeBox{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none;border-radius:18px;background:var(--chip);margin-top:8px}
+#schemeBox svg{width:100%;height:100%;transform-origin:0 0;display:block;user-select:none}
+#mres{margin-top:10px;max-height:34vh;overflow:auto;display:none;padding:12px 14px}
+#mres.on{display:block;animation:pop .3s}
+#msheet{position:absolute;left:12px;right:12px;bottom:calc(var(--nav) + 26px + var(--sb));display:none;padding:12px 14px;z-index:3}
+#msheet.on{display:block;animation:pop .25s}
+/* навбар */
+#nav{position:fixed;left:12px;right:12px;bottom:calc(10px + var(--sb));height:var(--nav);z-index:40;display:flex;padding:6px;border-radius:24px}
+#navInd{position:absolute;left:6px;top:6px;bottom:6px;width:calc((100% - 12px)/5);border-radius:18px;background:color-mix(in srgb,var(--accent) 18%,transparent);transition:transform .4s cubic-bezier(.3,1.25,.5,1)}
+#nav button{flex:1;position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10.5px;color:var(--muted);font-weight:600;transition:color .25s}
+#nav button svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s cubic-bezier(.3,1.5,.5,1)}
+#nav button.on{color:var(--accent)}
+#nav button.on svg{transform:translateY(-1px) scale(1.12)}
+#toast{position:fixed;left:50%;top:calc(80px + var(--st));transform:translate(-50%,-10px);background:rgba(16,20,26,.88);color:#fff;padding:9px 16px;border-radius:20px;font-size:13px;z-index:70;opacity:0;pointer-events:none;max-width:90%;text-align:center;transition:opacity .25s,transform .25s;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+.maplibregl-ctrl-bottom-left,.maplibregl-ctrl-bottom-right{margin-bottom:calc(var(--nav) + 14px + var(--sb));opacity:.75}
 </style>
 </head>
-<body>
+<body class="tab-nav">
 <div id="map"></div>
+<div id="crosshair"><div class="cpin"></div></div>
 
 <div id="navUI">
-  <div id="top" class="card">
-    <div class="row"><span class="sub" style="width:48px">Откуда</span><div class="pill muted" id="fromPill">📍 моё местоположение</div></div>
-    <div class="row" style="margin-top:6px"><span class="sub" style="width:48px">Куда</span><button class="pill" id="toPill">Куда едем? Нажмите для поиска</button></div>
+  <div id="top" class="surf">
+    <div class="trow"><i class="td"></i><button class="pill" id="fromPill"></button><button class="ic" id="swapBtn" aria-label="swap">⇅</button></div>
+    <div class="trow"><i class="td r"></i><button class="pill" id="toPill"></button></div>
     <div id="modes"></div>
   </div>
-  <div id="light"><i id="lightDot"></i><div><small>ДЕМО светофор</small><b id="lightSec">0</b></div></div>
-  <div id="sheet" class="card"></div>
-  <button id="locate" aria-label="Где я"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
-  <div id="metro" class="card"></div>
-  <button id="viewBtn" aria-label="2D / 3D">3D</button>
-  <div id="navBanner" class="card"><div class="arr" id="nbArr">↑</div><div><div class="big" id="nbDist"></div><div id="nbTxt"></div></div></div>
-  <div id="navBar" class="card"><div><div class="big" id="nbEta"></div><div class="sub" id="nbRem"></div></div><button id="nbVoice" class="btn ghost">🔊</button><button id="nbEnd" class="btn" style="background:#ef4444">Выйти</button></div>
+  <div id="side">
+    <button id="compBtn" class="fab surf" aria-label="north"><svg viewBox="0 0 24 24"><path d="M12 3l4 9h-8z" fill="currentColor"/><path d="M12 21l-4-9h8z" opacity=".4"/></svg></button>
+    <button id="viewBtn" class="fab surf">3D</button>
+    <button id="satBtn" class="fab surf" aria-label="satellite">🛰</button>
+    <button id="locate" class="fab surf" aria-label="locate"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+  </div>
+  <div id="speedo" class="surf"><b id="spv">0</b><span id="spu"></span></div>
+  <div id="rsheet" class="surf sheet"></div>
+  <div id="poi" class="surf sheet"></div>
+  <div id="mprompt" class="surf sheet"></div>
+  <div id="pickbar" class="surf sheet"><div class="big" id="pickTitle"></div><div class="sub" id="pickAddr" style="min-height:20px"></div><div class="opt"><button class="btn ghost" id="pickCancel"></button><button class="btn" id="pickOk"></button></div></div>
+  <div id="navBanner" class="surf"><div class="arr" id="nbArr">↑</div><div style="min-width:0"><div class="big" id="nbDist"></div><div id="nbTxt"></div><div class="sub" id="nbNext"></div></div></div>
+  <div id="navBar" class="surf"><div class="nbi"><div class="big" id="nbEta"></div><div class="sub" id="nbRem"></div></div><button id="nbVoice" class="ic">🔊</button><button id="nbEnd" class="btn red"></button></div>
 </div>
 
 <section class="view" id="v-search">
-  <h2>Поиск</h2>
-  <input type="text" id="q" placeholder="Адрес или место: СПб и Ленобласть" autocomplete="off">
+  <div class="vhead"><h2 id="qtitle"></h2></div>
+  <div class="seg" id="qseg"></div>
+  <div class="opt" id="qopts"></div>
+  <input type="text" id="q" autocomplete="off" style="margin-top:10px">
+  <div id="qchips"></div>
   <div id="qres"></div>
 </section>
 
-<section class="view" id="v-places">
-  <h2>Интересные места</h2>
-  <div class="sub">Опишите, что хотите найти, а умный подбор найдёт места рядом с центром карты.</div>
-  <textarea id="aiq" rows="2" placeholder="Например: тихое кафе с wifi, где можно поработать" style="margin-top:10px"></textarea>
-  <div class="chips" id="aichips"></div>
-  <button class="btn" id="aigo" style="width:100%">Подобрать места</button>
-  <div class="sub" id="aistate" style="margin-top:8px"></div>
-  <div id="aires"></div>
+<section class="view" id="v-favs"></section>
+
+<section class="view" id="v-metro">
+  <div class="vhead"><h2 id="mtitle"></h2></div>
+  <div class="row" id="mchips" style="flex-wrap:wrap"></div>
+  <div id="schemeBox"></div>
+  <div id="mres" class="surf"></div>
+  <div id="msheet" class="surf"></div>
 </section>
 
-<section class="view" id="v-settings">
-  <h2>Настройки</h2>
-  <div class="set"><label>Тема</label>
-    <div class="seg" id="themeSeg"><button data-v="auto">Авто</button><button data-v="light">Светлая</button><button data-v="dark">Тёмная</button></div></div>
-  <div class="set"><label>Цвет приложения</label><div class="sw" id="swatches"></div></div>
-  <div class="set"><div class="toggle"><label style="margin:0">3D-режим карты (наклон)</label><input type="checkbox" id="opt3d"></div></div>
-  <div class="set"><div class="toggle"><label style="margin:0">Светофор (демо-имитация)</label><input type="checkbox" id="optLight"></div>
-    <div class="sub">Реальных открытых данных о фазах светофоров нет, поэтому это условная имитация.</div></div>
-  <div class="set"><label>ИИ-подбор мест (по желанию)</label>
-    <input type="password" id="apikey" placeholder="API-ключ Anthropic (необязательно)">
-    <div class="sub">Без ключа работает встроенный подбор по ключевым словам. Ключ хранится только на этом устройстве.</div></div>
-  <div class="set"><label>Служебное</label>
-    <div class="row"><button class="btn ghost" id="testMetro">Проверить режим «у метро»</button><button class="btn ghost" id="clearCache">Сбросить кэш метро</button></div></div>
-  <div class="sub" style="padding-top:12px">Nova Navigator · карта © OpenStreetMap, OpenFreeMap. Маршруты: OSRM. Данные метро и наземного транспорта — OpenStreetMap, без реального времени.</div>
-</section>
+<section class="view" id="v-settings"></section>
 
-<nav id="tabbar">
-  <button data-tab="nav" class="on"><svg viewBox="0 0 24 24"><path d="M12 3l7 17-7-4-7 4z"/></svg>Навигатор</button>
-  <button data-tab="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Поиск</button>
-  <button data-tab="places"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/></svg>Места</button>
-  <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Настройки</button>
+<nav id="nav" class="surf">
+  <i id="navInd"></i>
+  <button data-tab="nav" class="on"><svg viewBox="0 0 24 24"><path d="M12 3l7 17-7-4-7 4z"/></svg><span></span></button>
+  <button data-tab="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span></span></button>
+  <button data-tab="metro"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="4"/><path d="M5 11h14M9 21l2-4M15 21l-2-4"/><circle cx="9" cy="14" r=".6" fill="currentColor"/><circle cx="15" cy="14" r=".6" fill="currentColor"/></svg><span></span></button>
+  <button data-tab="favs"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/></svg><span></span></button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span></span></button>
 </nav>
 <div id="toast"></div>
 
 <script>
+const D = {
+ru: {
+u_m: 'м', u_km: 'км', u_min: 'мин', u_h: 'ч', u_kmh: 'км/ч',
+nav_map: 'Навигатор', nav_search: 'Поиск', nav_metro: 'Метро', nav_favs: 'Избранное', nav_settings: 'Настройки',
+m_foot: 'Пешком', m_bike: 'Велосипед', m_car: 'Машина', m_transit: 'Транспорт',
+my_loc: '📍 Моё местоположение', my_loc_wait: '📍 Моё местоположение (ищу GPS…)', where_to: 'Куда едем?', where_from: 'Откуда начать?',
+on_map: 'На карте', done: 'Готово', cancel: 'Отмена', exit: 'Выйти', point_on_map: 'Точка на карте', place: 'Место',
+pick_from: 'Откуда начать маршрут', pick_to: 'Куда едем', pick_home: 'Укажите дом', pick_work: 'Укажите работу', pick_hint: 'Двигайте карту: метка покажет точку',
+loading: 'Загрузка…', locating: 'Определяю местоположение…', searching: 'Ищу…', retry: 'Повторить', start: 'Начать', demo: 'Демо', building: 'Строю маршрут…',
+err_server: 'Сервер данных не ответил вовремя', err_map: 'Не удалось загрузить карту. Проверьте интернет.', err_style: 'Нет связи: карта в упрощённом виде', err_geo_na: 'Геолокация недоступна в этом браузере', err_geo_denied: 'Нет доступа к геолокации. Разрешите её в настройках или укажите старт вручную.',
+err_metro: 'Данные метро недоступны', err_noroute: 'Маршрут не найден', err_search: 'Ошибка поиска. Проверьте интернет.', err_reroute: 'Не удалось перестроить маршрут',
+warn_acc: 'Низкая точность GPS (±{0} м). Включите «Точное местоположение» для Chrome и выйдите на открытое место.',
+need_start: 'Не определено местоположение. Укажите, откуда начать.', no_routes: 'Маршруты не найдены. Попробуйте другой способ.', no_direct: 'Прямых маршрутов наземного транспорта нет: показано метро/пешком.', via: 'через',
+walk_to: 'Пешком {0} до «{1}»', walk_d: 'Пешком {0}', xfer_to: 'Пересадка: «{0}»', ride_metro: 'Метро {0}: «{1}» → «{2}» ({3} ост.), в сторону «{4}»', ride_veh: '{0} {1}: сесть на «{2}», {3} ост. до «{4}»', stop: 'остановка', wait_n: 'ожидание ~{0} мин',
+v_bus: 'Автобус', v_trolleybus: 'Троллейбус', v_tram: 'Трамвай', v_share_taxi: 'Маршрутка', v_train: 'Электричка', v_light_rail: 'Электричка', v_subway: 'Метро',
+t_metro: 'Метро', t_surface: 'Автобус, трамвай, троллейбус', t_train: 'Электрички',
+nav_need_gps: 'Маршрут построен от выбранной точки. Для ведения по GPS выберите «Моё местоположение» или нажмите «Демо».', nav_no_gps: 'Нет GPS: нажмите «Демо» для проверки.',
+i_left: 'Поверните налево', i_right: 'Поверните направо', i_sl: 'Возьмите левее', i_sr: 'Возьмите правее', i_shl: 'Резко налево', i_shr: 'Резко направо', i_uturn: 'Развернитесь', i_straight: 'Двигайтесь прямо',
+i_round: 'На кольце сверните на {0}-й съезд', i_fork_l: 'На развилке держитесь левее', i_fork_r: 'На развилке держитесь правее', i_merge: 'Перестройтесь', i_arrive: 'Вы прибыли', i_arrive_left: 'Вы прибыли, цель слева', i_arrive_right: 'Вы прибыли, цель справа', on_street: 'на {0}',
+arrived: 'Вы прибыли', finish: 'Финиш', then: 'Затем: {0}', v_in: 'Через {0} метров, {1}', prep_exit: 'Приготовьтесь выходить: {0}', rerouting: 'Перестраиваю маршрут', eta_at: 'Прибытие в {0}',
+sq_places: 'Места', sq_transport: 'Транспорт', ph_place: 'Адрес или название места', ph_transport: 'Номер или название: 22, К-258, Гатчина…', transport_hint: 'Введите номер маршрута — покажу всю его трассу и остановки. Работает для автобусов, трамваев, троллейбусов, метро и электричек.',
+nearby: 'Рядом', recent: 'Недавнее', nothing: 'Ничего не нашлось рядом', nothing_reg: 'Ничего не найдено в СПб и Ленобласти', nothing_tr: 'Такой маршрут не найден', n_stops: '{0} остановок',
+home: 'Дом', work: 'Работа', set_place: 'Указать', favs_empty: 'Здесь будут ваши избранные места. Нажмите и удерживайте объект на карте, чтобы добавить.',
+go_here: 'Сюда', from_here: 'Отсюда', fav_add: 'В избранное', fav_remove: 'Убрать из избранного', fav_added: 'Добавлено в избранное', fav_removed: 'Удалено из избранного', copied: 'Ссылка скопирована',
+at_metro: 'Вы у метро «{0}»', route_to: 'Маршрут до «{0}»', no_metro_route: 'Маршрут по метро не найден', metro_pick_dest: 'Выберите цель в поиске, и я покажу маршрут от этой станции.', open_scheme: 'Схема метро', show_route: 'Показать маршрут',
+loading_metro: 'Загружаю схему метро (один раз)…', metro_tap: 'Нажмите на станции: откуда → куда', st_prefix: 'Ст. ',
+language: 'Язык', theme: 'Тема', th_auto: 'Авто', th_light: 'Светлая', th_dark: 'Тёмная', design: 'Оформление', st_std: 'Стандарт', st_glass: 'Стекло', accent: 'Цвет приложения',
+set_3d: '3D-здания и наклон карты', set_sat: 'Вид со спутника', set_speedo: 'Спидометр', set_voice: 'Голосовые подсказки', set_arrow: 'Значок моего местоположения',
+offline: 'Офлайн-карты', offline_hint: 'Скачайте карту региона заранее. Маршруты, поиск и транспорт всё равно требуют интернета. Лучше качать по Wi-Fi.', tiles: 'тайлов', mb: 'МБ', update: 'Обновить', download: 'Скачать',
+reg_spb: 'Санкт-Петербург (подробно)', reg_near: 'СПб и пригороды', reg_lo11: 'Ленобласть (обзор)', reg_lo12: 'Ленобласть (средне)', reg_view: 'Текущая область экрана',
+clear_maps: 'Удалить офлайн-карты', data: 'Данные', clear_transit: 'Сбросить кэш транспорта', cleared: 'Готово', storage: 'Занято на устройстве: ~{0} МБ',
+downloading: 'Скачиваю', preparing: 'Готовлю…', dl_busy: 'Загрузка уже идёт', dl_na: 'Офлайн-режим не поддерживается в этом браузере', dl_cancelled: 'Загрузка отменена', dl_done: 'Готово: загружено {0} файлов', dl_fails: 'ошибок: {0}', dl_err: 'Ошибка загрузки', offline_now: 'Нет интернета: работает только сохранённое'
+},
+en: {
+u_m: 'm', u_km: 'km', u_min: 'min', u_h: 'h', u_kmh: 'km/h',
+nav_map: 'Navigator', nav_search: 'Search', nav_metro: 'Metro', nav_favs: 'Saved', nav_settings: 'Settings',
+m_foot: 'Walk', m_bike: 'Bike', m_car: 'Car', m_transit: 'Transit',
+my_loc: '📍 My location', my_loc_wait: '📍 My location (locating…)', where_to: 'Where to?', where_from: 'Start from?',
+on_map: 'On map', done: 'Done', cancel: 'Cancel', exit: 'Exit', point_on_map: 'Point on map', place: 'Place',
+pick_from: 'Choose the start point', pick_to: 'Choose the destination', pick_home: 'Set your home', pick_work: 'Set your work', pick_hint: 'Move the map so the pin marks the spot',
+loading: 'Loading…', locating: 'Locating…', searching: 'Searching…', retry: 'Retry', start: 'Start', demo: 'Demo', building: 'Building route…',
+err_server: 'Data server did not respond in time', err_map: 'Could not load the map. Check your internet.', err_style: 'Offline: simplified map', err_geo_na: 'Geolocation is not available in this browser', err_geo_denied: 'No access to location. Allow it in settings or set the start manually.',
+err_metro: 'Metro data unavailable', err_noroute: 'Route not found', err_search: 'Search error. Check your internet.', err_reroute: 'Could not reroute',
+warn_acc: 'Low GPS accuracy (±{0} m). Enable "Precise location" for Chrome and go outside.',
+need_start: 'Location unknown. Choose where to start.', no_routes: 'No routes found. Try another mode.', no_direct: 'No direct surface transit found: showing metro/walking.', via: 'via',
+walk_to: 'Walk {0} to "{1}"', walk_d: 'Walk {0}', xfer_to: 'Transfer: "{0}"', ride_metro: 'Metro {0}: "{1}" → "{2}" ({3} stops), towards "{4}"', ride_veh: '{0} {1}: board at "{2}", {3} stops to "{4}"', stop: 'stop', wait_n: 'wait ~{0} min',
+v_bus: 'Bus', v_trolleybus: 'Trolleybus', v_tram: 'Tram', v_share_taxi: 'Minibus', v_train: 'Suburban train', v_light_rail: 'Suburban train', v_subway: 'Metro',
+t_metro: 'Metro', t_surface: 'Bus, tram, trolleybus', t_train: 'Suburban trains',
+nav_need_gps: 'The route starts at a chosen point. For GPS guidance pick "My location" or press "Demo".', nav_no_gps: 'No GPS: press "Demo" to try it.',
+i_left: 'Turn left', i_right: 'Turn right', i_sl: 'Keep left', i_sr: 'Keep right', i_shl: 'Sharp left', i_shr: 'Sharp right', i_uturn: 'Make a U-turn', i_straight: 'Continue straight',
+i_round: 'At the roundabout take exit {0}', i_fork_l: 'At the fork keep left', i_fork_r: 'At the fork keep right', i_merge: 'Merge', i_arrive: 'You have arrived', i_arrive_left: 'You have arrived, destination on the left', i_arrive_right: 'You have arrived, destination on the right', on_street: 'onto {0}',
+arrived: 'You have arrived', finish: 'Finish', then: 'Then: {0}', v_in: 'In {0} meters, {1}', prep_exit: 'Get ready to exit: {0}', rerouting: 'Rerouting', eta_at: 'Arrive at {0}',
+sq_places: 'Places', sq_transport: 'Transport', ph_place: 'Address or place name', ph_transport: 'Number or name: 22, K-258, Gatchina…', transport_hint: 'Enter a route number to see its full path and stops. Works for buses, trams, trolleybuses, metro and suburban trains.',
+nearby: 'Nearby', recent: 'Recent', nothing: 'Nothing found nearby', nothing_reg: 'Nothing found in St Petersburg and Leningrad Oblast', nothing_tr: 'Route not found', n_stops: '{0} stops',
+home: 'Home', work: 'Work', set_place: 'Set', favs_empty: 'Your saved places will appear here. Long-press an object on the map to add it.',
+go_here: 'To here', from_here: 'From here', fav_add: 'Save', fav_remove: 'Remove from saved', fav_added: 'Saved', fav_removed: 'Removed', copied: 'Link copied',
+at_metro: 'You are at "{0}" metro', route_to: 'Route to "{0}"', no_metro_route: 'No metro route found', metro_pick_dest: 'Pick a destination in search and I will show the route from this station.', open_scheme: 'Metro map', show_route: 'Show route',
+loading_metro: 'Loading metro map (once)…', metro_tap: 'Tap stations: from → to', st_prefix: 'Stn. ',
+language: 'Language', theme: 'Theme', th_auto: 'Auto', th_light: 'Light', th_dark: 'Dark', design: 'Style', st_std: 'Standard', st_glass: 'Glass', accent: 'Accent color',
+set_3d: '3D buildings and tilt', set_sat: 'Satellite view', set_speedo: 'Speedometer', set_voice: 'Voice guidance', set_arrow: 'My location icon',
+offline: 'Offline maps', offline_hint: 'Download a region map in advance. Routing, search and transit still need internet. Prefer Wi-Fi.', tiles: 'tiles', mb: 'MB', update: 'Update', download: 'Download',
+reg_spb: 'Saint Petersburg (detailed)', reg_near: 'St Petersburg + suburbs', reg_lo11: 'Leningrad Oblast (overview)', reg_lo12: 'Leningrad Oblast (medium)', reg_view: 'Current screen area',
+clear_maps: 'Delete offline maps', data: 'Data', clear_transit: 'Clear transit cache', cleared: 'Done', storage: 'Used on device: ~{0} MB',
+downloading: 'Downloading', preparing: 'Preparing…', dl_busy: 'Download already running', dl_na: 'Offline mode is not supported in this browser', dl_cancelled: 'Download cancelled', dl_done: 'Done: {0} files saved', dl_fails: 'errors: {0}', dl_err: 'Download error', offline_now: 'No internet: only saved data works'
+}
+};
+
 "use strict";
-/* ---------- утилиты ---------- */
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
-const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let S = {theme:'auto', accent:'#22c55e', key:'', light:false, d3:true, mode:'foot'};
-try { Object.assign(S, JSON.parse(localStorage.getItem('nova') || '{}')); } catch (e) {}
-const save = () => { try { localStorage.setItem('nova', JSON.stringify(S)); } catch (e) {} };
-function toast(t, ms = 3200) { const e = $('#toast'); e.textContent = t; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', ms); }
-function hav(a, b, c, d) { const R = 6371000, r = Math.PI / 180, dl = (c - a) * r, dn = (d - b) * r; const x = Math.sin(dl / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dn / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
-const fmtD = m => m < 1000 ? Math.round(m / 10) * 10 + ' м' : (m / 1000).toFixed(m < 10000 ? 1 : 0) + ' км';
-const fmtT = min => { min = Math.max(1, Math.round(min)); return min < 60 ? min + ' мин' : Math.floor(min / 60) + ' ч ' + (min % 60 ? min % 60 + ' мин' : ''); };
+/* ================= утилиты и состояние ================= */
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+let S = {lang: 'ru', theme: 'auto', style: 'standard', accent: '#22c55e', d3: true, sat: false, mode: 'foot', arrow: 'arrow', speedo: true, voice: true, favs: [], hist: [], home: null, work: null};
+try { const o = JSON.parse(localStorage.getItem('nova3') || localStorage.getItem('nova') || '{}'); for (const k in S) if (k in o && o[k] != null) S[k] = o[k]; } catch (e) {}
+if (!['foot', 'bike', 'car', 'transit'].includes(S.mode)) S.mode = 'transit';
+if (!D[S.lang]) S.lang = 'ru';
+const save = () => { try { localStorage.setItem('nova3', JSON.stringify(S)); } catch (e) {} };
+const t = (k, ...a) => { let s = (D[S.lang] && D[S.lang][k] != null) ? D[S.lang][k] : (D.ru[k] != null ? D.ru[k] : k); a.forEach((v, i) => { s = s.split('{' + i + '}').join(v); }); return s; };
 const WALK = 80; // м/мин
 
-/* ---------- темы ---------- */
-const ACCENTS = [['#22c55e','Зелёный'],['#8b5cf6','Фиолетовый'],['#3b82f6','Синий'],['#f97316','Оранжевый'],['#ec4899','Розовый'],['#ef4444','Красный'],['#14b8a6','Бирюзовый']];
-function applyTheme() {
-  const dark = S.theme === 'dark' || (S.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  document.documentElement.style.setProperty('--accent', S.accent);
-  document.querySelector('meta[name=theme-color]').content = S.accent;
-  $$('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === S.theme));
-  $$('#swatches button').forEach(b => b.classList.toggle('on', b.dataset.c === S.accent));
-  if (map && map.getLayer && map.getLayer('route-solid')) { map.setPaintProperty('route-solid', 'line-color', ['coalesce', ['get', 'color'], S.accent]); map.setPaintProperty('route-dash', 'line-color', ['coalesce', ['get', 'color'], S.accent]); }
-  if (meEl) meEl.querySelector('path').setAttribute('fill', S.accent);
-}
-$('#swatches').innerHTML = ACCENTS.map(a => `<button data-c="${a[0]}" title="${a[1]}" style="background:${a[0]}"></button>`).join('');
-$('#swatches').onclick = e => { const b = e.target.closest('button'); if (b) { S.accent = b.dataset.c; save(); applyTheme(); } };
-$('#themeSeg').onclick = e => { const b = e.target.closest('button'); if (b) { S.theme = b.dataset.v; save(); applyTheme(); } };
-matchMedia('(prefers-color-scheme: dark)').addEventListener && matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
-
-/* ---------- вкладки ---------- */
-function tab(n) {
-  $$('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === n));
-  $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + n));
-  $('#navUI').style.display = n === 'nav' ? 'block' : 'none';
-  if (n === 'nav' && map) setTimeout(() => map.resize(), 50);
-  if (n === 'search') setTimeout(() => $('#q').focus(), 100);
-}
-$('#tabbar').onclick = e => { const b = e.target.closest('button'); if (b) tab(b.dataset.tab); };
-$('#toPill').onclick = () => tab('search');
-
-/* ---------- карта ---------- */
-let map, meEl, meMarker, destMarker, me = null, dest = null;
-let curRoute = null, nav = null, sim = null, follow = true, voiceOn = true, prevPos = null, extr = [];
-const MODES = [['foot','🚶 Пешком'],['bike','🚲 Велосипед'],['car','🚗 Машина'],['metro','🚇 Метро'],['bus','🚌 Наземный']];
-$('#modes').innerHTML = MODES.map(m => `<button data-m="${m[0]}">${m[1]}</button>`).join('');
-$('#modes').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.mode = b.dataset.m; save(); markModes(); if (dest) buildRoute(); };
-function markModes() { $$('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === S.mode)); }
-
-function initMap() {
-  if (typeof maplibregl === 'undefined') { toast('Не удалось загрузить карту. Проверьте интернет.', 8000); return; }
-  map = new maplibregl.Map({
-    container: 'map', style: 'https://tiles.openfreemap.org/styles/liberty',
-    center: [30.3141, 59.9386], zoom: 15.3, pitch: S.d3 ? 60 : 0, bearing: -17, maxPitch: 75, attributionControl: {compact: true}
-  });
-  map.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
-  map.on('dragstart', e => { if (nav && nav.active && e.originalEvent) follow = false; });
-  map.on('load', () => {
-    map.addSource('route', {type: 'geojson', data: {type: 'FeatureCollection', features: []}});
-    map.addLayer({id: 'route-case', type: 'line', source: 'route', filter: ['!', ['get', 'dash']], layout: {'line-cap': 'round', 'line-join': 'round'}, paint: {'line-color': '#fff', 'line-width': 10, 'line-opacity': .9}});
-    map.addLayer({id: 'route-solid', type: 'line', source: 'route', filter: ['!', ['get', 'dash']], layout: {'line-cap': 'round', 'line-join': 'round'}, paint: {'line-color': ['coalesce', ['get', 'color'], S.accent], 'line-width': 6}});
-    map.addLayer({id: 'route-dash', type: 'line', source: 'route', filter: ['get', 'dash'], paint: {'line-color': ['coalesce', ['get', 'color'], S.accent], 'line-width': 4, 'line-dasharray': [1.2, 1.6]}});
-    map.addSource('pts', {type: 'geojson', data: {type: 'FeatureCollection', features: []}});
-    map.addLayer({id: 'pts', type: 'circle', source: 'pts', paint: {'circle-radius': 6, 'circle-color': '#fff', 'circle-stroke-width': 3, 'circle-stroke-color': ['coalesce', ['get', 'color'], S.accent]}});
-    applyTheme();
-    init3dLayers(); set3D(S.d3);
-  });
-  map.on('click', e => {
-    if ($('#v-search').classList.contains('on') || (nav && nav.active)) return;
-    setDest(e.lngLat.lat, e.lngLat.lng, 'Точка на карте', true);
-  });
-}
-function setData(src, feats) { if (map && map.getSource(src)) map.getSource(src).setData({type: 'FeatureCollection', features: feats}); }
-const line = (coords, props) => ({type: 'Feature', properties: props || {}, geometry: {type: 'LineString', coordinates: coords}});
-function fit(coords) { if (!map || !coords.length) return; const b = new maplibregl.LngLatBounds(); coords.forEach(c => b.extend(c)); map.fitBounds(b, {padding: {top: 220, bottom: 260, left: 40, right: 40}, maxZoom: 17, pitch: S.d3 ? 45 : 0, duration: 900}); }
-function clearRoute() { setData('route', []); setData('pts', []); }
-
-/* ---------- геолокация ---------- */
-function mkMe() {
-  meEl = document.createElement('div'); meEl.className = 'me';
-  meEl.innerHTML = `<svg viewBox="0 0 30 30"><path d="M15 2 L26 27 L15 21 L4 27 Z" fill="${S.accent}" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>`;
-}
-function startGeo() {
-  if (!navigator.geolocation) { toast('Геолокация недоступна в этом браузере'); return; }
-  mkMe();
-  navigator.geolocation.watchPosition(p => {
-    if (sim) return;
-    const h = (p.coords.speed > 1 && typeof p.coords.heading === 'number' && !isNaN(p.coords.heading)) ? p.coords.heading : null;
-    handlePos(p.coords.latitude, p.coords.longitude, h);
-  }, err => toast('Нет доступа к геолокации: старт будет в центре карты'), {enableHighAccuracy: true, maximumAge: 5000, timeout: 15000});
-}
-$('#locate').onclick = () => { follow = true; if (nav && nav.active) { followCam(); return; } if (me && map) map.easeTo({center: [me.lon, me.lat], zoom: 16.5, duration: 700}); else { toast('Определяю местоположение…'); startGeo(); } };
-function origin() { if (me) return me; const c = map.getCenter(); $('#fromPill').textContent = '📌 центр карты (нет GPS)'; return {lat: c.lat, lon: c.lng}; }
-
-/* ---------- 2D / 3D ---------- */
-function init3dLayers() {
-  extr = map.getStyle().layers.filter(l => l.type === 'fill-extrusion').map(l => ({id: l.id, h: map.getPaintProperty(l.id, 'fill-extrusion-height'), b: map.getPaintProperty(l.id, 'fill-extrusion-base')}));
-}
-function set3D(on) {
-  S.d3 = on; save();
-  $('#opt3d').checked = on; $('#viewBtn').textContent = on ? '3D' : '2D';
-  if (!map) return;
-  extr.forEach(e => { try { map.setPaintProperty(e.id, 'fill-extrusion-height', on ? e.h : 0); map.setPaintProperty(e.id, 'fill-extrusion-base', on ? e.b : 0); } catch (err) {} });
-  try { map.touchPitch[on ? 'enable' : 'disable'](); } catch (err) {}
-  map.easeTo({pitch: on ? 60 : 0, duration: 600});
-}
-$('#viewBtn').onclick = () => set3D(!S.d3);
-
-/* ---------- позиция ---------- */
+function toast(msg, ms = 3200) { const e = $('#toast'); e.textContent = msg; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), ms); }
+function hav(a, b, c, d) { const R = 6371000, r = Math.PI / 180, dl = (c - a) * r, dn = (d - b) * r; const x = Math.sin(dl / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dn / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
+const fmtD = m => m < 1000 ? Math.max(10, Math.round(m / 10) * 10) + ' ' + t('u_m') : (m / 1000).toFixed(m < 10000 ? 1 : 0).replace(/\.0$/, '') + ' ' + t('u_km');
+const fmtT = min => { min = Math.max(1, Math.round(min)); return min < 60 ? min + ' ' + t('u_min') : Math.floor(min / 60) + ' ' + t('u_h') + (min % 60 ? ' ' + (min % 60) + ' ' + t('u_min') : ''); };
 const brg = (a, b) => { const r = Math.PI / 180, y = Math.sin((b.lon - a.lon) * r) * Math.cos(b.lat * r), x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos((b.lon - a.lon) * r); return (Math.atan2(y, x) / r + 360) % 360; };
-function handlePos(lat, lon, heading) {
-  const first = !me, ph = me && me.h != null ? me.h : null;
-  if (heading == null && prevPos && hav(prevPos.lat, prevPos.lon, lat, lon) > 5) heading = brg(prevPos, {lat, lon});
-  if (!prevPos || hav(prevPos.lat, prevPos.lon, lat, lon) > 5) prevPos = {lat, lon};
-  me = {lat, lon, h: heading != null ? heading : ph};
-  if (!meEl) mkMe();
-  if (!meMarker && map) meMarker = new maplibregl.Marker({element: meEl, rotationAlignment: 'map', pitchAlignment: 'map'}).setLngLat([lon, lat]).addTo(map);
-  else if (meMarker) meMarker.setLngLat([lon, lat]);
-  if (me.h != null && meMarker) meMarker.setRotation(me.h);
-  if (nav && nav.active) { nav.pos = me; updateNav(); }
-  else { if (first && map) map.easeTo({center: [lon, lat], duration: 800}); checkMetro(); }
+const debounce = (f, ms) => { let h; return (...a) => { clearTimeout(h); h = setTimeout(() => f(...a), ms); }; };
+
+/* ---- IndexedDB key-value ---- */
+const kv = (() => {
+  let db = null; const mem = new Map();
+  const open = () => db ? Promise.resolve(db) : new Promise((res, rej) => { try { const r = indexedDB.open('nova', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => { db = r.result; res(db); }; r.onerror = () => rej(r.error); } catch (e) { rej(e); } });
+  const tx = async (mode, fn) => { try { const d = await open(); return await new Promise((res, rej) => { const tr = d.transaction('kv', mode); const q = fn(tr.objectStore('kv')); tr.oncomplete = () => res(q && q.result); tr.onerror = () => rej(tr.error); tr.onabort = () => rej(tr.error); }); } catch (e) { return undefined; } };
+  return {
+    get: async k => { if (mem.has(k)) return mem.get(k); const v = await tx('readonly', s => s.get(k)); if (v !== undefined) mem.set(k, v); return v; },
+    set: async (k, v) => { mem.set(k, v); await tx('readwrite', s => s.put(v, k)); },
+    del: async k => { mem.delete(k); await tx('readwrite', s => s.delete(k)); },
+    keys: async () => (await tx('readonly', s => s.getAllKeys())) || [...mem.keys()]
+  };
+})();
+
+/* ---- сеть ---- */
+async function fj(url, o = {}) {
+  const c = new AbortController(), tm = setTimeout(() => c.abort(), o.ms || 15000);
+  try { const r = await fetch(url, Object.assign({}, o.init || {}, {signal: c.signal})); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); }
+  finally { clearTimeout(tm); }
+}
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+async function overpass(q, ms = 25000) {
+  const ctls = OVERPASS.map(() => new AbortController());
+  const one = (u, i) => { const tm = setTimeout(() => ctls[i].abort(), ms); return fetch(u, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'data=' + encodeURIComponent(q), signal: ctls[i].signal}).then(async r => { if (!r.ok) throw new Error('HTTP ' + r.status); const j = await r.json(); if (j.remark && /error|timed out|out of memory/i.test(j.remark) && !(j.elements && j.elements.length)) throw new Error('busy'); return j; }).finally(() => clearTimeout(tm)); };
+  try { const j = await Promise.any(OVERPASS.map(one)); ctls.forEach(c => { try { c.abort(); } catch (e) {} }); return j; }
+  catch (e) { throw new Error(t('err_server')); }
 }
 
-/* ---------- пошаговая навигация ---------- */
-const OFF = {foot: 45, bike: 55, car: 70};
-const THR = {foot: [60, 15], bike: [120, 25], car: [350, 50]};
-const NAVZ = {foot: 18.3, bike: 17.8, car: 17.2};
+/* ---- геометрия маршрута ---- */
 function prep(coords) { const cum = [0]; for (let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + hav(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0])); return cum; }
 function nearestOn(coords, cum, lat, lon) {
-  const k = Math.cos(lat * Math.PI / 180); let best = {d: 1e12, along: 0};
+  const k = Math.cos(lat * Math.PI / 180); let best = {d: 1e12, along: 0, i: 0};
   for (let i = 1; i < coords.length; i++) {
     const ax = (coords[i - 1][0] - lon) * k * 111320, ay = (coords[i - 1][1] - lat) * 110540, bx = (coords[i][0] - lon) * k * 111320, by = (coords[i][1] - lat) * 110540;
     const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
-    let t = L2 ? -(ax * dx + ay * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
-    const d = Math.hypot(ax + t * dx, ay + t * dy);
-    if (d < best.d) best = {d, along: cum[i - 1] + t * (cum[i] - cum[i - 1])};
+    let u = L2 ? -(ax * dx + ay * dy) / L2 : 0; u = Math.max(0, Math.min(1, u));
+    const d = Math.hypot(ax + u * dx, ay + u * dy);
+    if (d < best.d) best = {d, along: cum[i - 1] + u * (cum[i] - cum[i - 1]), i};
   }
   return best;
 }
-function instr(st) {
-  const m = st.maneuver, t = m.type, mod = m.modifier || 'straight', nm = st.name ? ' на ' + st.name : '';
-  const D = {'left': ['Поверните налево', '↰'], 'right': ['Поверните направо', '↱'], 'slight left': ['Возьмите левее', '↖'], 'slight right': ['Возьмите правее', '↗'], 'sharp left': ['Резко налево', '↰'], 'sharp right': ['Резко направо', '↱'], 'uturn': ['Развернитесь', '↶'], 'straight': ['Двигайтесь прямо', '↑']};
-  if (t === 'arrive') return {txt: 'Вы прибыли' + (mod === 'left' ? ', цель слева' : mod === 'right' ? ', цель справа' : ''), ar: '🏁'};
-  if (/roundabout|rotary/.test(t)) return {txt: 'На круговом движении ' + (m.exit ? 'сверните на ' + m.exit + '-й съезд' : 'продолжайте') + nm, ar: '⟳'};
-  if (t === 'fork') { if (mod.includes('left')) return {txt: 'На развилке держитесь левее' + nm, ar: '↖'}; if (mod.includes('right')) return {txt: 'На развилке держитесь правее' + nm, ar: '↗'}; }
-  if (t === 'merge') return {txt: 'Перестройтесь' + nm, ar: '↑'};
-  const d = D[mod] || D.straight; return {txt: d[0] + nm, ar: d[1]};
+function sliceAt(coords, cum, a) { // [0..a], [a..end]
+  if (!coords.length) return [[], []];
+  if (a <= 0) return [[], coords]; if (a >= cum[cum.length - 1]) return [coords, []];
+  let i = 1; while (i < cum.length - 1 && cum[i] < a) i++;
+  const s = (cum[i] - cum[i - 1]) || 1, u = (a - cum[i - 1]) / s, p = [coords[i - 1][0] + (coords[i][0] - coords[i - 1][0]) * u, coords[i - 1][1] + (coords[i][1] - coords[i - 1][1]) * u];
+  return [coords.slice(0, i).concat([p]), [p].concat(coords.slice(i))];
 }
-function buildMan(R) {
-  const out = [], n = R.steps.length;
-  R.steps.forEach((st, i) => {
-    if (i === 0) return;
-    const m = st.maneuver, last = i === n - 1;
-    if (!last && (m.type === 'new name' || m.type === 'continue' || m.type === 'notification') && (!m.modifier || m.modifier === 'straight')) return;
-    const a = last ? R.total : nearestOn(R.coords, R.cum, m.location[1], m.location[0]).along;
-    out.push(Object.assign({along: a}, instr(st)));
-  });
-  out.sort((x, y) => x.along - y.along);
-  if (!out.length || out[out.length - 1].ar !== '🏁') out.push({along: R.total, txt: 'Вы прибыли', ar: '🏁'});
+
+/* ---- цвета для тёмной карты ---- */
+const COLRE = /^\s*(#[0-9a-f]{3,8}|rgba?\(|hsla?\()/i;
+function rgb2hsl(r, g, b) { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; let h = 0, s = 0; if (mx !== mn) { const d = mx - mn; s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn); h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h /= 6; } return [h, s, l]; }
+function hsl2rgb(h, s, l) { if (s === 0) return [l * 255, l * 255, l * 255]; const q = l < .5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q, f = x => { if (x < 0) x += 1; if (x > 1) x -= 1; return x < 1 / 6 ? p + (q - p) * 6 * x : x < .5 ? q : x < 2 / 3 ? p + (q - p) * (2 / 3 - x) * 6 : p; }; return [f(h + 1 / 3) * 255, f(h) * 255, f(h - 1 / 3) * 255]; }
+function parseCol(s) {
+  s = s.trim(); let m;
+  if (s[0] === '#') { let h = s.slice(1); if (h.length === 3 || h.length === 4) h = h.split('').map(c => c + c).join(''); if (h.length !== 6 && h.length !== 8) return null; const n = parseInt(h.slice(0, 6), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255, h.length === 8 ? parseInt(h.slice(6), 16) / 255 : 1]; }
+  const al = v => v == null ? 1 : (v.endsWith('%') ? parseFloat(v) / 100 : parseFloat(v));
+  if (m = s.match(/^rgba?\(\s*([\d.]+%?)[\s,]+([\d.]+%?)[\s,]+([\d.]+%?)(?:[\s,/]+([\d.]+%?))?\s*\)$/i)) { const f = v => v.endsWith('%') ? parseFloat(v) * 2.55 : parseFloat(v); return [f(m[1]), f(m[2]), f(m[3]), al(m[4])]; }
+  if (m = s.match(/^hsla?\(\s*([\d.]+)(?:deg)?[\s,]+([\d.]+)%[\s,]+([\d.]+)%(?:[\s,/]+([\d.]+%?))?\s*\)$/i)) { const [r, g, b] = hsl2rgb(parseFloat(m[1]) / 360, parseFloat(m[2]) / 100, parseFloat(m[3]) / 100); return [r, g, b, al(m[4])]; }
+  return null;
+}
+function darkCol(s, key) {
+  const c = parseCol(s); if (!c) return s;
+  let [h, sa, l] = rgb2hsl(c[0], c[1], c[2]);
+  if (/text-halo/.test(key)) l = .05 + l * .12; else if (/text-color|icon-color/.test(key)) l = .5 + (1 - l) * .45; else l = .07 + (1 - l) * .6;
+  sa *= .8; const [r, g, b] = hsl2rgb(h, sa, l);
+  return `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${c[3]})`;
+}
+function mapCols(v, f) { if (typeof v === 'string') return COLRE.test(v) ? f(v) : v; if (Array.isArray(v)) return v.map(x => mapCols(x, f)); return v; }
+const isDark = () => S.theme === 'dark' || (S.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+
+
+/* ================= карта ================= */
+const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+let map = null, baseStyle = null, extr = [], lastDark = null;
+const G = {acc: [], route: [], pts: []};
+let meMarker = null, me = null, destMarker = null, startMarker = null, dest = null, startPt = null, sim = null, nav = null, follow = true, compassH = null, mapPick = null, pickFor = 'to';
+let routeMarkers = [], poiMarker = null;
+
+async function loadBase() {
+  if (baseStyle) return baseStyle;
+  try { baseStyle = await fj(STYLE_URL, {ms: 12000}); kv.set('style', baseStyle); }
+  catch (e) { const c = await kv.get('style'); if (!c) throw e; baseStyle = c; }
+  extr = baseStyle.layers.filter(l => l.type === 'fill-extrusion').map(l => ({id: l.id, h: l.paint && l.paint['fill-extrusion-height'], b: l.paint && l.paint['fill-extrusion-base']}));
+  return baseStyle;
+}
+function buildStyle(base) {
+  const st = JSON.parse(JSON.stringify(base)), dark = isDark();
+  if (S.sat) {
+    st.sources.sat = {type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 19, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics'};
+    let ins = -1;
+    st.layers.forEach((l, i) => {
+      l.layout = l.layout || {}; l.paint = l.paint || {};
+      if (['background', 'fill', 'hillshade'].includes(l.type)) l.layout.visibility = 'none'; else if (ins < 0) ins = i;
+      if (l.type === 'symbol') { l.paint['text-color'] = '#ffffff'; l.paint['text-halo-color'] = 'rgba(0,0,0,0.8)'; l.paint['text-halo-width'] = 1.4; }
+      if (l.type === 'fill-extrusion') { l.paint['fill-extrusion-color'] = 'rgba(235,235,235,0.9)'; l.paint['fill-extrusion-opacity'] = .85; }
+    });
+    st.layers.splice(ins < 0 ? st.layers.length : ins, 0, {id: 'sat-raster', type: 'raster', source: 'sat'});
+  } else if (dark) {
+    for (const l of st.layers) { if (!l.paint) continue; for (const k in l.paint) if (/color$/.test(k)) l.paint[k] = mapCols(l.paint[k], c => darkCol(c, k)); }
+  }
+  if (!S.d3) st.layers.forEach(l => { if (l.type === 'fill-extrusion') { l.paint = l.paint || {}; l.paint['fill-extrusion-height'] = 0; l.paint['fill-extrusion-base'] = 0; } });
+  return st;
+}
+function rebuildStyle() { if (map && baseStyle) map.setStyle(buildStyle(baseStyle), {diff: false}); }
+
+async function initMap() {
+  if (typeof maplibregl === 'undefined') { toast(t('err_map'), 9000); return; }
+  try { await loadBase(); } catch (e) { baseStyle = {version: 8, sources: {}, layers: [{id: 'bg', type: 'background', paint: {'background-color': '#e9edf1'}}]}; toast(t('err_style'), 7000); }
+  lastDark = isDark();
+  map = new maplibregl.Map({container: 'map', style: buildStyle(baseStyle), center: [30.3141, 59.9386], zoom: 15, pitch: S.d3 ? 60 : 0, bearing: -17, maxPitch: 75, attributionControl: {compact: true}, fadeDuration: 150});
+  map.on('style.load', onStyleLoad);
+  map.on('rotate', updCompass); map.on('pitch', updCompass);
+  map.on('dragstart', e => { if (nav && e.originalEvent) follow = false; });
+  map.on('click', () => { if (!nav && !mapPick) closePoi(); });
+  map.on('click', 'route-alt', e => { const f = e.features && e.features[0]; if (f) selectOpt(+f.properties.i); });
+  map.on('mouseenter', 'route-alt', () => { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'route-alt', () => { map.getCanvas().style.cursor = ''; });
+  map.on('moveend', () => { if (mapPick) pickReverse(); });
+  bindLongPress();
+  if (me) placeMe();
+}
+function onStyleLoad() {
+  const fc = f => ({type: 'FeatureCollection', features: f});
+  for (const id of ['acc', 'route', 'pts']) if (!map.getSource(id)) map.addSource(id, {type: 'geojson', data: fc(G[id])});
+  const rnd = {'line-cap': 'round', 'line-join': 'round'}, fl = k => ['==', ['get', 'k'], k];
+  map.addLayer({id: 'acc-fill', type: 'fill', source: 'acc', paint: {'fill-color': S.accent, 'fill-opacity': .12}});
+  map.addLayer({id: 'acc-line', type: 'line', source: 'acc', paint: {'line-color': S.accent, 'line-width': 1.2, 'line-opacity': .5}});
+  map.addLayer({id: 'route-alt', type: 'line', source: 'route', filter: fl('alt'), layout: rnd, paint: {'line-color': '#8b95a5', 'line-width': 6, 'line-opacity': .8}});
+  map.addLayer({id: 'route-passed', type: 'line', source: 'route', filter: fl('passed'), layout: rnd, paint: {'line-color': '#98a2b3', 'line-width': 6, 'line-opacity': .85}});
+  map.addLayer({id: 'route-case', type: 'line', source: 'route', filter: fl('main'), layout: rnd, paint: {'line-color': '#ffffff', 'line-width': 11, 'line-opacity': .95}});
+  map.addLayer({id: 'route-main', type: 'line', source: 'route', filter: fl('main'), layout: rnd, paint: {'line-color': ['coalesce', ['get', 'color'], S.accent], 'line-width': 6.5}});
+  map.addLayer({id: 'route-walk', type: 'line', source: 'route', filter: fl('walk'), layout: {'line-join': 'round'}, paint: {'line-color': ['coalesce', ['get', 'color'], '#475569'], 'line-width': 4.5, 'line-dasharray': [1, 1.6]}});
+  map.addLayer({id: 'pts', type: 'circle', source: 'pts', paint: {'circle-radius': ['coalesce', ['get', 'r'], 5.5], 'circle-color': '#ffffff', 'circle-stroke-width': 3, 'circle-stroke-color': ['coalesce', ['get', 'color'], S.accent]}});
+  drawAcc();
+}
+function setG(id, feats) { G[id] = feats; if (map) { const s = map.getSource && map.getSource(id); if (s) s.setData({type: 'FeatureCollection', features: feats}); } }
+const feat = (coords, props) => ({type: 'Feature', properties: props || {}, geometry: {type: 'LineString', coordinates: coords}});
+const ptf = (c, props) => ({type: 'Feature', properties: props || {}, geometry: {type: 'Point', coordinates: c}});
+function fitTo(coords, pad) { if (!map || !coords.length) return; const b = new maplibregl.LngLatBounds(); coords.forEach(c => b.extend(c)); const h = innerHeight; map.fitBounds(b, Object.assign({padding: {top: 190, bottom: Math.round(h * .42), left: 40, right: 40}, maxZoom: 17, duration: 900}, pad || {})); }
+function set3D(on) {
+  S.d3 = on; save(); $('#viewBtn').textContent = on ? '3D' : '2D';
+  if (map) { extr.forEach(e => { try { map.setPaintProperty(e.id, 'fill-extrusion-height', on ? e.h : 0); map.setPaintProperty(e.id, 'fill-extrusion-base', on ? e.b : 0); } catch (err) {} }); map.easeTo({pitch: on ? 60 : 0, duration: 600}); }
+  const c = $('#set-d3'); if (c) c.checked = on;
+}
+function setSat(on) { S.sat = on; save(); $('#satBtn').style.color = on ? '#fff' : ''; $('#satBtn').style.background = on ? 'var(--accent)' : ''; rebuildStyle(); const c = $('#set-sat'); if (c) c.checked = on; }
+function updCompass() { if (!map) return; $('#compBtn svg').style.transform = `rotate(${-map.getBearing()}deg)`; }
+$('#viewBtn').onclick = () => set3D(!S.d3);
+$('#satBtn').onclick = () => setSat(!S.sat);
+$('#compBtn').onclick = () => { if (map) map.easeTo({bearing: 0, pitch: S.d3 ? 60 : 0, duration: 500}); };
+
+/* ================= тема / язык ================= */
+function paintAccent() {
+  if (!map || !map.getLayer || !map.getLayer('route-main')) return;
+  try {
+    map.setPaintProperty('route-main', 'line-color', ['coalesce', ['get', 'color'], S.accent]);
+    map.setPaintProperty('pts', 'circle-stroke-color', ['coalesce', ['get', 'color'], S.accent]);
+    map.setPaintProperty('acc-fill', 'fill-color', S.accent); map.setPaintProperty('acc-line', 'line-color', S.accent);
+  } catch (e) {}
+}
+function applyTheme() {
+  const dark = isDark(), r = document.documentElement;
+  r.dataset.theme = dark ? 'dark' : 'light'; r.dataset.style = S.style; r.style.setProperty('--accent', S.accent);
+  const m = $('meta[name=theme-color]'); if (m) m.content = dark ? '#0e1116' : '#f2f4f7';
+  if (map && baseStyle && !S.sat && lastDark !== dark) rebuildStyle();
+  lastDark = dark; paintAccent(); if (me) placeMe();
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener && matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (S.theme === 'auto') applyTheme(); });
+
+/* ================= стрелка местоположения ================= */
+const ARROWS = {
+  arrow: {vb: 30, svg: c => `<path d="M15 2 L26 27 L15 21 L4 27 Z" fill="${c}" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>`},
+  sharp: {vb: 30, svg: c => `<path d="M15 1 L23 28 L15 23 L7 28 Z" fill="${c}" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>`},
+  dot: {vb: 44, svg: c => `<path d="M22 22 L8 0 L36 0 Z" fill="${c}" opacity=".3"/><circle cx="22" cy="22" r="8" fill="${c}" stroke="#fff" stroke-width="3.5"/>`},
+  car: {vb: 30, svg: c => `<rect x="8" y="2" width="14" height="26" rx="6" fill="${c}" stroke="#fff" stroke-width="2"/><path d="M10 9 h10 l-1.5 4.5 h-7z" fill="#fff" opacity=".9"/><rect x="10" y="21" width="10" height="3.5" rx="1.5" fill="#fff" opacity=".6"/>`},
+  plane: {vb: 30, svg: c => `<path d="M15 1 L18 11 L28 17 L28 20 L18 17.5 L17.5 24 L21 26.5 L21 28.5 L15 27 L9 28.5 L9 26.5 L12.5 24 L12 17.5 L2 20 L2 17 L12 11 Z" fill="${c}" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>`},
+  diamond: {vb: 30, svg: c => `<path d="M15 1 L27 15 L15 29 L3 15 Z" fill="${c}" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>`}
+};
+const arrowSvg = (k, c, px) => { const A = ARROWS[k] || ARROWS.arrow; return `<svg viewBox="0 0 ${A.vb} ${A.vb}" width="${px}" height="${px}">${A.svg(c)}</svg>`; };
+function placeMe() {
+  if (!map || !me) return;
+  if (meMarker) meMarker.remove();
+  const el = document.createElement('div'); el.className = 'me'; el.innerHTML = arrowSvg(S.arrow, S.accent, 40);
+  meMarker = new maplibregl.Marker({element: el, rotationAlignment: 'map', pitchAlignment: 'map'}).setLngLat([me.lon, me.lat]).addTo(map);
+  applyRot();
+}
+function applyRot() { if (!meMarker || !me) return; const h = (me.sp > 1.2 && me.h != null) ? me.h : (compassH != null ? compassH : me.h); if (h != null) meMarker.setRotation(h); }
+if ('ondeviceorientationabsolute' in window) addEventListener('deviceorientationabsolute', debounce(e => { if (e.alpha != null) { compassH = (360 - e.alpha) % 360; applyRot(); } }, 120), true);
+
+/* ================= GPS (фильтр Калмана) ================= */
+let kf = null, prevPos = null, accWarned = false, lastRaw = null;
+function drawAcc() {
+  if (!map || !map.getSource || !map.getSource('acc')) return;
+  if (!me || me.acc == null || sim || me.acc < 8) { setG('acc', []); return; }
+  const r = Math.min(me.acc, 3000), pts = [], k = 111320 * Math.cos(me.lat * Math.PI / 180);
+  for (let i = 0; i <= 48; i++) { const a = i / 48 * 2 * Math.PI; pts.push([me.lon + r * Math.sin(a) / k, me.lat + r * Math.cos(a) / 110540]); }
+  setG('acc', [{type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: [pts]}}]);
+}
+function startGeo() {
+  if (!navigator.geolocation) { toast(t('err_geo_na')); return; }
+  navigator.geolocation.watchPosition(onGps, () => { toast(t('err_geo_denied'), 6000); updateFromPill(); }, {enableHighAccuracy: true, maximumAge: 1000, timeout: 25000});
+}
+function onGps(p) {
+  if (sim) return;
+  const c = p.coords, acc = Math.max(c.accuracy || 50, 4), now = p.timestamp || Date.now();
+  if (!kf) { kf = {lat: c.latitude, lon: c.longitude, v: acc * acc, t: now}; if (acc > 800 && !accWarned) { accWarned = true; toast(t('warn_acc', Math.round(acc)), 9000); } }
+  else {
+    if (acc > 300 && kf.v < acc * acc && now - kf.t < 20000) return;
+    const dt = Math.max(0, (now - kf.t) / 1000); kf.v += dt * 9;
+    const K = kf.v / (kf.v + acc * acc); kf.lat += K * (c.latitude - kf.lat); kf.lon += K * (c.longitude - kf.lon); kf.v = (1 - K) * kf.v; kf.t = now;
+  }
+  let sp = (c.speed != null && !isNaN(c.speed)) ? c.speed : null;
+  if (sp == null && lastRaw) { const dt = (now - lastRaw.t) / 1000; if (dt > 0.5 && dt < 10) sp = hav(lastRaw.lat, lastRaw.lon, kf.lat, kf.lon) / dt; }
+  lastRaw = {lat: kf.lat, lon: kf.lon, t: now};
+  let h = (sp != null && sp > 1 && typeof c.heading === 'number' && !isNaN(c.heading)) ? c.heading : null;
+  if (h == null && prevPos && hav(prevPos.lat, prevPos.lon, kf.lat, kf.lon) > 8) h = brg(prevPos, {lat: kf.lat, lon: kf.lon});
+  if (!prevPos || hav(prevPos.lat, prevPos.lon, kf.lat, kf.lon) > 8) prevPos = {lat: kf.lat, lon: kf.lon};
+  handlePos(kf.lat, kf.lon, h, Math.sqrt(kf.v), sp);
+}
+function handlePos(lat, lon, heading, acc, sp) {
+  const first = !me, ph = me && me.h != null ? me.h : null;
+  me = {lat, lon, h: heading != null ? heading : ph, acc: acc == null ? null : acc, sp: sp == null ? 0 : sp};
+  if (map) { if (!meMarker) placeMe(); else { meMarker.setLngLat([lon, lat]); applyRot(); } }
+  drawAcc(); updateFromPill(); updateSpeed();
+  if (nav) updateNav();
+  else { if (first && map) map.easeTo({center: [lon, lat], zoom: Math.max(map.getZoom(), 15.5), duration: 800}); checkMetro(); }
+}
+let spTimer = null;
+function updateSpeed() {
+  const w = $('#speedo'); if (!S.speedo || !me) { w.classList.remove('on'); return; }
+  const kmh = Math.round((me.sp || 0) * 3.6);
+  if (kmh >= 3 || nav) { $('#spv').textContent = kmh; $('#spu').textContent = t('u_kmh'); w.classList.add('on'); clearTimeout(spTimer); spTimer = setTimeout(() => { if (!nav) w.classList.remove('on'); }, 6000); }
+}
+$('#locate').onclick = () => { follow = true; if (nav) { followCam(); return; } if (me && map) map.easeTo({center: [me.lon, me.lat], zoom: 16.5, duration: 700}); else { toast(t('locating')); startGeo(); } };
+
+/* ================= вкладки ================= */
+const TABS = ['nav', 'search', 'metro', 'favs', 'settings'];
+function tab(n) {
+  if (mapPick && n !== 'nav') endPick();
+  TABS.forEach(x => document.body.classList.toggle('tab-' + x, x === n));
+  $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === n));
+  $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + n));
+  $('#navInd').style.transform = `translateX(${TABS.indexOf(n) * 100}%)`;
+  if (n === 'nav' && map) setTimeout(() => map.resize(), 60);
+  if (n === 'search') openSearchTab();
+  if (n === 'favs') renderFavs();
+  if (n === 'settings') renderSettings();
+  if (n === 'metro') openMetroTab();
+}
+$('#nav').onclick = e => { const b = e.target.closest('button'); if (b) { if (b.dataset.tab === 'search' && !$('.view.on')) pickFor = 'to'; if (b.dataset.tab === 'search' && $('#v-search').classList.contains('on')) return; tab(b.dataset.tab); } };
+
+/* ================= точки: откуда / куда ================= */
+function mkPin(cls) { const el = document.createElement('div'); el.className = 'pin ' + (cls || ''); return el; }
+function setDest(lat, lon, name, go = true) {
+  if (nav) endNav(false, true);
+  dest = {lat, lon, name: name || t('point_on_map')};
+  if (destMarker) destMarker.remove();
+  if (map) destMarker = new maplibregl.Marker({element: mkPin(), anchor: 'bottom'}).setLngLat([lon, lat]).addTo(map);
+  $('#toPill').textContent = dest.name; $('#toPill').classList.remove('muted');
+  closePoi(); tab('nav'); if (go) buildRoute();
+}
+function setOrigin(lat, lon, name, go = true) {
+  if (nav) endNav(false, true);
+  startPt = {lat, lon, name: name || t('point_on_map')};
+  if (startMarker) startMarker.remove();
+  if (map) startMarker = new maplibregl.Marker({element: mkPin('g'), anchor: 'bottom'}).setLngLat([lon, lat]).addTo(map);
+  updateFromPill(); closePoi(); tab('nav');
+  if (go) { if (dest) buildRoute(); else if (map) map.easeTo({center: [lon, lat], duration: 600}); }
+}
+function clearOrigin(go = true) { startPt = null; if (startMarker) { startMarker.remove(); startMarker = null; } updateFromPill(); if (go && dest) buildRoute(); }
+function clearDest() { dest = null; if (destMarker) { destMarker.remove(); destMarker = null; } updateToPill(); }
+function updateToPill() { const p = $('#toPill'); if (dest) { p.textContent = dest.name; p.classList.remove('muted'); } else { p.textContent = t('where_to'); p.classList.add('muted'); } }
+function updateFromPill() {
+  const p = $('#fromPill'); if (!p) return;
+  if (startPt) { p.textContent = startPt.name; p.classList.remove('muted'); return; }
+  p.classList.add('muted');
+  p.textContent = me ? t('my_loc') + (me.acc != null && me.acc > 25 ? ' (±' + Math.round(me.acc) + ' ' + t('u_m') + ')' : '') : t('my_loc_wait');
+}
+const origin = () => startPt || (me ? {lat: me.lat, lon: me.lon, name: t('my_loc')} : null);
+$('#fromPill').onclick = () => openPicker('from');
+$('#toPill').onclick = () => openPicker('to');
+$('#swapBtn').onclick = () => {
+  const a = startPt || (me && {lat: me.lat, lon: me.lon, name: t('my_loc')}), b = dest; if (!a || !b) return;
+  startPt = null; if (startMarker) { startMarker.remove(); startMarker = null; }
+  const A = Object.assign({}, a), B = Object.assign({}, b);
+  setOrigin(B.lat, B.lon, B.name, false); setDest(A.lat, A.lon, A.name, false); buildRoute();
+};
+
+/* ---- выбор точки на карте: двигаем карту, жмём «Готово» ---- */
+function startMapPick(which) {
+  mapPick = {which, label: ''}; pickFor = which; tab('nav');
+  document.body.classList.add('picking'); $('#pickbar').classList.add('on');
+  $('#pickTitle').textContent = which === 'from' ? t('pick_from') : which === 'to' ? t('pick_to') : which === 'home' ? t('pick_home') : t('pick_work');
+  $('#pickAddr').textContent = t('pick_hint'); pickReverse();
+}
+function endPick() { mapPick = null; document.body.classList.remove('picking'); $('#pickbar').classList.remove('on'); }
+const pickReverse = debounce(async () => {
+  if (!mapPick || !map) return; const c = map.getCenter(); const r = await reverse(c.lat, c.lng);
+  if (!mapPick) return; mapPick.label = r ? (r.name || r.street || r.addr) : ''; $('#pickAddr').textContent = r ? (r.addr || r.name) : t('pick_hint');
+}, 700);
+$('#pickCancel').onclick = endPick;
+$('#pickOk').onclick = () => { if (!mapPick || !map) return; const c = map.getCenter(), nm = mapPick.label || t('point_on_map'); endPick(); applyPick(c.lat, c.lng, nm); };
+function applyPick(lat, lon, name, rec) {
+  if (rec !== false) addHist({name, lat, lon});
+  if (pickFor === 'from') setOrigin(lat, lon, name);
+  else if (pickFor === 'home') { S.home = {name, lat, lon}; save(); tab('favs'); }
+  else if (pickFor === 'work') { S.work = {name, lat, lon}; save(); tab('favs'); }
+  else setDest(lat, lon, name);
+}
+function addHist(p) { S.hist = [p].concat((S.hist || []).filter(x => !(Math.abs(x.lat - p.lat) < 1e-4 && Math.abs(x.lon - p.lon) < 1e-4))).slice(0, 12); save(); }
+
+/* ================= обратное геокодирование и категории ================= */
+const revCache = new Map();
+async function reverse(lat, lon) {
+  const k = lat.toFixed(4) + ',' + lon.toFixed(4); if (revCache.has(k)) return revCache.get(k);
+  try {
+    const j = await fj(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=${S.lang}&lat=${lat}&lon=${lon}`, {ms: 9000});
+    const a = j.address || {}, road = a.road || a.pedestrian || a.footway || a.path || '', street = [road, a.house_number].filter(Boolean).join(', ');
+    const out = {name: j.name || '', cat: j.type || '', cls: j.category || '', street, addr: [street, a.suburb || a.city_district || '', a.city || a.town || a.village || ''].filter(Boolean).join(', ') || (j.display_name || '').split(',').slice(0, 3).join(',')};
+    revCache.set(k, out); return out;
+  } catch (e) { return null; }
+}
+const CATN = {
+  museum: ['Музей', 'Museum', '🏛'], gallery: ['Галерея', 'Gallery', '🖼'], school: ['Школа', 'School', '🏫'], kindergarten: ['Детский сад', 'Kindergarten', '🧒'], college: ['Колледж', 'College', '🎓'], university: ['Университет', 'University', '🎓'],
+  hospital: ['Больница', 'Hospital', '🏥'], clinic: ['Поликлиника', 'Clinic', '🏥'], doctors: ['Врач', 'Doctor', '🩺'], dentist: ['Стоматология', 'Dentist', '🦷'], pharmacy: ['Аптека', 'Pharmacy', '💊'], cafe: ['Кафе', 'Cafe', '☕'], restaurant: ['Ресторан', 'Restaurant', '🍽'],
+  fast_food: ['Фастфуд', 'Fast food', '🍔'], bar: ['Бар', 'Bar', '🍸'], pub: ['Паб', 'Pub', '🍺'], bank: ['Банк', 'Bank', '🏦'], atm: ['Банкомат', 'ATM', '💳'], fuel: ['АЗС', 'Gas station', '⛽'], parking: ['Парковка', 'Parking', '🅿'],
+  supermarket: ['Супермаркет', 'Supermarket', '🛒'], convenience: ['Магазин', 'Shop', '🛒'], mall: ['Торговый центр', 'Shopping mall', '🛍'], department_store: ['Универмаг', 'Department store', '🛍'], bakery: ['Пекарня', 'Bakery', '🥐'],
+  clothes: ['Одежда', 'Clothes', '👕'], hairdresser: ['Парикмахерская', 'Hairdresser', '💇'], post_office: ['Почта', 'Post office', '✉️'], police: ['Полиция', 'Police', '👮'], fire_station: ['Пожарная часть', 'Fire station', '🚒'],
+  library: ['Библиотека', 'Library', '📚'], theatre: ['Театр', 'Theatre', '🎭'], cinema: ['Кинотеатр', 'Cinema', '🎬'], park: ['Парк', 'Park', '🌳'], garden: ['Сад', 'Garden', '🌷'], playground: ['Детская площадка', 'Playground', '🛝'],
+  stadium: ['Стадион', 'Stadium', '🏟'], sports_centre: ['Спорткомплекс', 'Sports centre', '🏅'], fitness_centre: ['Фитнес', 'Fitness', '🏋'], swimming_pool: ['Бассейн', 'Swimming pool', '🏊'],
+  place_of_worship: ['Храм', 'Place of worship', '⛪'], church: ['Церковь', 'Church', '⛪'], cathedral: ['Собор', 'Cathedral', '⛪'], hotel: ['Отель', 'Hotel', '🏨'], hostel: ['Хостел', 'Hostel', '🛏'], guest_house: ['Гостевой дом', 'Guest house', '🏠'],
+  attraction: ['Достопримечательность', 'Attraction', '📍'], viewpoint: ['Смотровая площадка', 'Viewpoint', '🔭'], monument: ['Памятник', 'Monument', '🗿'], memorial: ['Мемориал', 'Memorial', '🕯'], zoo: ['Зоопарк', 'Zoo', '🦁'],
+  station: ['Станция', 'Station', '🚉'], bus_stop: ['Остановка', 'Bus stop', '🚏'], subway: ['Метро', 'Metro', '🚇'], subway_entrance: ['Вход в метро', 'Metro entrance', '🚇'], tram_stop: ['Трамвайная остановка', 'Tram stop', '🚋'],
+  apartments: ['Жилой дом', 'Apartments', '🏢'], residential: ['Жилой дом', 'Residential', '🏢'], house: ['Дом', 'House', '🏠'], yes: ['Здание', 'Building', '🏢'], commercial: ['Коммерческое здание', 'Commercial', '🏢'], office: ['Офис', 'Office', '🏢'],
+  townhall: ['Администрация', 'Town hall', '🏛'], courthouse: ['Суд', 'Courthouse', '⚖️'], toilets: ['Туалет', 'Toilets', '🚻'], marketplace: ['Рынок', 'Marketplace', '🧺'], industrial: ['Промышленное здание', 'Industrial', '🏭'],
+  college_building: ['Учебный корпус', 'Campus', '🎓'], dormitory: ['Общежитие', 'Dormitory', '🏢'], retail: ['Магазин', 'Retail', '🛍'], bicycle_parking: ['Велопарковка', 'Bike parking', '🚲'], charging_station: ['Зарядная станция', 'Charging', '🔌']
+};
+function catInfo(...keys) { for (const k of keys) { const c = k && CATN[String(k).toLowerCase()]; if (c) return {label: S.lang === 'en' ? c[1] : c[0], ic: c[2]}; } const k = keys.find(Boolean); return {label: k ? String(k).replace(/_/g, ' ') : t('place'), ic: '📍'}; }
+
+/* ================= долгое нажатие: информация об объекте ================= */
+let poiState = null;
+function bindLongPress() {
+  const el = map.getCanvasContainer(); let timer = null, st = null; const ids = new Set();
+  el.addEventListener('contextmenu', e => e.preventDefault());
+  el.addEventListener('pointerdown', e => { ids.add(e.pointerId); clearTimeout(timer); if (ids.size > 1 || nav || mapPick) return; st = {x: e.clientX, y: e.clientY}; timer = setTimeout(() => { const r = el.getBoundingClientRect(); try { navigator.vibrate && navigator.vibrate(18); } catch (er) {} openPoiAt([st.x - r.left, st.y - r.top]); }, 550); });
+  el.addEventListener('pointermove', e => { if (st && Math.hypot(e.clientX - st.x, e.clientY - st.y) > 10) clearTimeout(timer); });
+  const stop = e => { ids.delete(e.pointerId); clearTimeout(timer); };
+  el.addEventListener('pointerup', stop); el.addEventListener('pointercancel', stop); el.addEventListener('pointerleave', stop);
+}
+async function openPoiAt(pt) {
+  const ll = map.unproject(pt); let f = null;
+  try {
+    const layers = map.getStyle().layers.filter(l => l['source-layer'] === 'poi').map(l => l.id);
+    if (layers.length) { const hits = map.queryRenderedFeatures([[pt[0] - 16, pt[1] - 16], [pt[0] + 16, pt[1] + 16]], {layers}).filter(h => h.properties && (h.properties.name || h.properties['name:latin'])); f = hits[0] || null; }
+  } catch (e) {}
+  const p = f ? f.properties : null, g = f && f.geometry && f.geometry.type === 'Point' ? f.geometry.coordinates : null;
+  poiState = {lat: g ? g[1] : ll.lat, lon: g ? g[0] : ll.lng, name: p ? (p.name || p['name:latin']) : '', cat: p ? catInfo(p.subclass, p.class) : null, addr: '', loading: true};
+  if (poiMarker) poiMarker.remove();
+  poiMarker = new maplibregl.Marker({element: mkPin('y'), anchor: 'bottom'}).setLngLat([poiState.lon, poiState.lat]).addTo(map);
+  renderPoi();
+  const my = poiState, r = await reverse(my.lat, my.lon);
+  if (poiState !== my) return;
+  my.loading = false;
+  if (r) { my.addr = r.addr; if (!my.name) my.name = r.name || r.street; if (!my.cat && (r.cat || r.cls)) my.cat = catInfo(r.cat, r.cls); if (!my.name) my.name = t('point_on_map'); }
+  if (!my.cat) my.cat = {label: t('point_on_map'), ic: '📍'};
+  if (!my.name) my.name = t('point_on_map');
+  renderPoi();
+}
+function favIdx(lat, lon) { return S.favs.findIndex(f => hav(f.lat, f.lon, lat, lon) < 30); }
+function renderPoi() {
+  const s = poiState, el = $('#poi'); if (!s) { el.classList.remove('on'); return; }
+  const fav = favIdx(s.lat, s.lon) >= 0;
+  el.innerHTML = `<div class="grab"></div><div class="rhead"><div style="min-width:0"><div class="big">${esc(s.name || t('loading'))}</div><div class="sub">${s.cat ? s.cat.ic + ' ' + esc(s.cat.label) : ''}${s.loading ? ' · ' + t('loading') : ''}</div></div><button class="x" id="poiX">×</button></div>
+  ${s.addr ? `<div class="sub" style="margin-bottom:6px">📍 ${esc(s.addr)}</div>` : ''}
+  <div class="opt"><button class="btn" id="poiTo">🏁 ${t('go_here')}</button><button class="btn ghost" id="poiFrom">🟢 ${t('from_here')}</button></div>
+  <div class="opt"><button class="btn ghost" id="poiFav">${fav ? '★ ' + t('fav_remove') : '☆ ' + t('fav_add')}</button><button class="btn ghost" id="poiShare" style="flex:0 0 52px">📤</button></div>`;
+  el.classList.add('on');
+  $('#poiX').onclick = closePoi;
+  $('#poiTo').onclick = () => { const p = poiState; pickFor = 'to'; applyPick(p.lat, p.lon, p.name); };
+  $('#poiFrom').onclick = () => { const p = poiState; pickFor = 'from'; applyPick(p.lat, p.lon, p.name); };
+  $('#poiFav').onclick = () => { const p = poiState, i = favIdx(p.lat, p.lon); if (i >= 0) S.favs.splice(i, 1); else S.favs.unshift({name: p.name, cat: p.cat ? p.cat.label : '', ic: p.cat ? p.cat.ic : '📍', lat: p.lat, lon: p.lon, addr: p.addr}); save(); renderPoi(); toast(i >= 0 ? t('fav_removed') : t('fav_added')); };
+  $('#poiShare').onclick = () => shareLoc(s);
+}
+function closePoi() { poiState = null; $('#poi').classList.remove('on'); if (poiMarker) { poiMarker.remove(); poiMarker = null; } }
+async function shareLoc(s) {
+  const url = `https://www.openstreetmap.org/?mlat=${s.lat.toFixed(6)}&mlon=${s.lon.toFixed(6)}#map=18/${s.lat.toFixed(6)}/${s.lon.toFixed(6)}`;
+  try { if (navigator.share) await navigator.share({title: s.name || 'Nova Navigator', text: s.name || '', url}); else { await navigator.clipboard.writeText(url); toast(t('copied')); } } catch (e) {}
+}
+
+
+/* ================= транспорт: данные OSM ================= */
+const VEH = {
+  bus: {ic: '🚌', col: '#2563eb', sp: 240, wait: 5}, trolleybus: {ic: '🚎', col: '#0891b2', sp: 230, wait: 5}, tram: {ic: '🚋', col: '#dc2626', sp: 260, wait: 6},
+  share_taxi: {ic: '🚐', col: '#d97706', sp: 280, wait: 5}, train: {ic: '🚆', col: '#7c3aed', sp: 750, wait: 12}, light_rail: {ic: '🚆', col: '#7c3aed', sp: 750, wait: 12}, subway: {ic: '🚇', col: '#0ea5e9', sp: 650, wait: 3}
+};
+const LO_BBOX = [58.4, 27.8, 61.8, 36.0];
+const sname = (n, en) => (S.lang === 'en' && en) ? en : n;
+
+function parseRels(j) {
+  const nodes = new Map(); (j.elements || []).forEach(e => { if (e.type === 'node') nodes.set(e.id, e); });
+  const out = [];
+  for (const r of j.elements || []) {
+    if (r.type !== 'relation') continue; const tg = r.tags || {};
+    const mem = (r.members || []).filter(m => m.type === 'node' && nodes.has(m.ref));
+    let sel = mem.filter(m => /^stop/.test(m.role)); if (sel.length < 2) sel = mem.filter(m => /^platform/.test(m.role)); if (sel.length < 2) sel = mem;
+    const stops = []; let last = null;
+    for (const m of sel) {
+      if (m.ref === last) continue; last = m.ref; const n = nodes.get(m.ref), nm = (n.tags && (n.tags['name:' + S.lang] || n.tags.name)) || '', pv = stops[stops.length - 1];
+      if (pv && hav(pv.la, pv.lo, n.lat, n.lon) < 35 && (!nm || pv.n === nm)) continue; stops.push({n: nm, la: n.lat, lo: n.lon});
+    }
+    if (stops.length < 2) continue;
+    out.push({id: r.id, type: tg.route, ref: tg.ref || '', name: tg.name || '', from: tg.from || '', to: tg.to || '', col: tg.colour || '', svc: tg.service || '', stops});
+  }
   return out;
 }
-async function fetchRoute(o, mode) {
-  const u = `https://routing.openstreetmap.de/${OSRM[mode]}/${o.lon},${o.lat};${dest.lon},${dest.lat}?overview=full&geometries=geojson&steps=true`;
-  const r = await fetch(u); if (!r.ok) throw new Error('Сервер маршрутов: ' + r.status);
-  const j = await r.json(); if (!j.routes || !j.routes[0]) throw new Error('Маршрут не найден');
-  const rt = j.routes[0], speed = {foot: 80, bike: 250, car: null}[mode];
-  const coords = rt.geometry.coordinates, cum = prep(coords);
-  return {mode, coords, cum, total: cum[cum.length - 1] || rt.distance, dist: rt.distance, min: speed ? rt.distance / speed : rt.duration / 60, steps: (rt.legs[0] && rt.legs[0].steps) || []};
+async function nearRoutes(p, kind) {
+  const key = `nr3|${kind}|${p.lat.toFixed(3)}|${p.lon.toFixed(3)}`, c = await kv.get(key);
+  if (c && Date.now() - c.ts < 3 * 864e5) return c.rels;
+  const R = kind === 't' ? 2500 : 500, a = `${p.lat.toFixed(5)},${p.lon.toFixed(5)}`;
+  const q = kind === 't'
+    ? `[out:json][timeout:25];(node(around:${R},${a})[railway~"^(station|halt|stop)$"];node(around:${R},${a})[public_transport~"^(stop_position|platform)$"][train=yes];)->.s;rel(bn.s)[route~"^(train|light_rail)$"]->.x;.x out body;node(r.x)->.n;.n out body qt;`
+    : `[out:json][timeout:25];(node(around:${R},${a})[highway=bus_stop];node(around:${R},${a})[public_transport~"^(platform|stop_position)$"];)->.s;rel(bn.s)[route~"^(bus|trolleybus|tram|share_taxi)$"]->.x;.x out body;node(r.x)->.n;.n out body qt;`;
+  const rels = parseRels(await overpass(q, 28000));
+  kv.set(key, {ts: Date.now(), rels}); return rels;
 }
-async function routeOsrm(o) {
-  const R = await fetchRoute(o, S.mode); curRoute = R;
-  setData('route', [line(R.coords)]); fit(R.coords);
-  const names = [...new Set(R.steps.map(s => s.name).filter(Boolean))].slice(0, 6);
-  sheet(`<div class="big">${fmtT(R.min)} · ${fmtD(R.dist)}</div><div class="sub">${MODES.find(m => m[0] === S.mode)[1]} до «${esc(dest.name)}»</div>` + (names.length ? `<div style="margin-top:8px" class="sub">Через: ${names.map(esc).join(' → ')}</div>` : '') + `<div class="row" style="margin-top:10px"><button class="btn" id="goBtn" style="flex:1">▶ Начать</button><button class="btn ghost" id="simBtn">Демо</button></div>`);
-  $('#goBtn').onclick = () => startNav(false); $('#simBtn').onclick = () => startNav(true);
+function isCommuter(r) {
+  if (/long_distance|high_speed|night|international/.test(r.svc)) return false;
+  if (/Москва|Moscow|Мурманск|Петрозаводск/i.test(r.name + r.to + r.from)) return false;
+  const inb = r.stops.filter(s => s.la >= LO_BBOX[0] && s.la <= LO_BBOX[2] && s.lo >= LO_BBOX[1] && s.lo <= LO_BBOX[3]).length;
+  return inb >= r.stops.length * .9;
 }
-
-function speak(t) { if (!voiceOn || !('speechSynthesis' in window)) return; try { const u = new SpeechSynthesisUtterance(t); u.lang = 'ru-RU'; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
-function followCam() {
-  if (!nav || !follow || !map) return;
-  const p = nav.pos;
-  map.easeTo({center: [p.lon, p.lat], bearing: p.h != null ? p.h : map.getBearing(), pitch: S.d3 ? 60 : 0, zoom: NAVZ[nav.r.mode], duration: 900, easing: t => t, padding: {top: S.d3 ? 220 : 140, bottom: 90, left: 0, right: 0}});
-}
-function updateNav() {
-  const R = nav.r, p = nav.pos;
-  const np = nearestOn(R.coords, R.cum, p.lat, p.lon), left = Math.max(0, R.total - np.along);
-  if (np.d > OFF[R.mode] && !nav.rerouting && !sim && Date.now() - nav.lastReroute > 12000) reroute();
-  if (left < 20 || hav(p.lat, p.lon, dest.lat, dest.lon) < 22) { endNav(true); return; }
-  let k = nav.man.findIndex(m => m.along > np.along + 6); if (k < 0) k = nav.man.length - 1;
-  const m = nav.man[k], dm = Math.max(0, m.along - np.along), perMin = R.total / Math.max(R.min, 0.1), minLeft = left / perMin;
-  $('#nbArr').textContent = m.ar; $('#nbDist').textContent = (m.ar === '🏁' && dm < 30) ? 'Финиш' : fmtD(dm); $('#nbTxt').textContent = m.txt;
-  $('#nbEta').textContent = fmtT(minLeft) + ' · ' + fmtD(left);
-  $('#nbRem').textContent = 'Прибытие в ' + new Date(Date.now() + minLeft * 60000).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
-  const [t1, t2] = THR[R.mode], ka = k + '-a', kb = k + '-b';
-  if (dm <= t2 && !nav.spoken[kb]) { nav.spoken[kb] = nav.spoken[ka] = 1; speak(m.txt); }
-  else if (dm <= t1 && dm > t2 && !nav.spoken[ka]) { nav.spoken[ka] = 1; speak('Через ' + (Math.round(dm / 10) * 10) + ' метров, ' + m.txt.charAt(0).toLowerCase() + m.txt.slice(1)); }
-  followCam();
-}
-async function reroute() {
-  nav.rerouting = true; nav.lastReroute = Date.now(); toast('Перестраиваю маршрут…', 2500); speak('Перестраиваю маршрут');
-  try { const r = await fetchRoute(nav.pos, nav.r.mode); if (!nav) return; curRoute = r; nav.r = r; nav.man = buildMan(r); nav.spoken = {}; setData('route', [line(r.coords)]); }
-  catch (e) { toast('Не удалось перестроить маршрут'); }
-  if (nav) nav.rerouting = false;
-}
-function startSim(R) {
-  let dist = 0; const v = {foot: 7, bike: 11, car: 26}[R.mode];
-  sim = setInterval(() => {
-    dist = Math.min(R.total, dist + v);
-    let i = 1; while (i < R.cum.length - 1 && R.cum[i] < dist) i++;
-    const a = R.coords[i - 1], b = R.coords[i], seg = (R.cum[i] - R.cum[i - 1]) || 1, t = Math.min(1, Math.max(0, (dist - R.cum[i - 1]) / seg));
-    handlePos(a[1] + (b[1] - a[1]) * t, a[0] + (b[0] - a[0]) * t, brg({lat: a[1], lon: a[0]}, {lat: b[1], lon: b[0]}));
-  }, 1000);
-}
-async function startNav(simulate) {
-  if (!curRoute || !map) return;
-  const R = curRoute;
-  if (!simulate && !me) { toast('Нет GPS: не могу вести по маршруту. Нажмите «Демо» для проверки.', 4500); return; }
-  nav = {active: true, r: R, man: buildMan(R), pos: me || {lat: R.coords[0][1], lon: R.coords[0][0]}, spoken: {}, lastReroute: 0, rerouting: false, wl: null, savedMe: me ? Object.assign({}, me) : null};
-  follow = true;
-  $('#top').style.display = 'none'; $('#sheet').classList.remove('on'); $('#metro').classList.remove('on');
-  $('#navBanner').classList.add('on'); $('#navBar').classList.add('on');
-  try { if (navigator.wakeLock) nav.wl = await navigator.wakeLock.request('screen'); } catch (e) {}
-  if (!nav) return;
-  if (simulate) startSim(R); else updateNav();
-  followCam();
-}
-function endNav(arrived, silent) {
-  if (!nav) return;
-  const n = nav; nav = null;
-  if (sim) { clearInterval(sim); sim = null; if (n.savedMe) { me = n.savedMe; if (meMarker) meMarker.setLngLat([me.lon, me.lat]); } else { me = null; if (meMarker) { meMarker.remove(); meMarker = null; } } }
-  try { if (n.wl) n.wl.release(); } catch (e) {}
-  try { speechSynthesis.cancel(); } catch (e) {}
-  $('#navBanner').classList.remove('on'); $('#navBar').classList.remove('on'); $('#top').style.display = '';
-  if (arrived && !silent) { speak('Вы прибыли'); toast('🏁 Вы прибыли!', 5000); }
-  clearRoute();
-  if (map) map.easeTo({pitch: S.d3 ? 60 : 0, bearing: S.d3 ? -17 : 0, padding: {top: 0, bottom: 0, left: 0, right: 0}, duration: 800});
-  if (!arrived && !silent) buildRoute();
-}
-$('#nbVoice').onclick = () => { voiceOn = !voiceOn; $('#nbVoice').textContent = voiceOn ? '🔊' : '🔇'; if (!voiceOn) { try { speechSynthesis.cancel(); } catch (e) {} } };
-$('#nbEnd').onclick = () => endNav(false);
-
-/* ---------- цель ---------- */
-function setDest(lat, lon, name, route) {
-  if (nav) endNav(true, true);
-  dest = {lat, lon, name};
-  if (destMarker) destMarker.remove();
-  const el = document.createElement('div'); el.className = 'pin';
-  destMarker = new maplibregl.Marker({element: el, anchor: 'bottom'}).setLngLat([lon, lat]).addTo(map);
-  $('#toPill').textContent = '🏁 ' + name; $('#toPill').classList.remove('muted');
-  tab('nav');
-  if (route) buildRoute();
-}
-
-/* ---------- маршруты ---------- */
-const OSRM = {foot: 'routed-foot/route/v1/foot', bike: 'routed-bike/route/v1/bike', car: 'routed-car/route/v1/driving'};
-function sheet(html) { const s = $('#sheet'); s.innerHTML = '<button class="x" id="shx">×</button>' + html; s.classList.add('on'); $('#shx').onclick = () => s.classList.remove('on'); }
-const step = (color, html) => `<div class="step"><span class="dot" style="background:${color || 'var(--accent)'}"></span><div>${html}</div></div>`;
-
-async function buildRoute() {
-  if (!dest || !map) return;
-  markModes();
-  const o = origin();
-  clearRoute(); curRoute = null;
-  sheet('<div class="sub">Строю маршрут…</div>');
-  try {
-    if (S.mode === 'metro') await routeMetro(o);
-    else if (S.mode === 'bus') await routeBus(o);
-    else await routeOsrm(o);
-  } catch (e) { console.error(e); sheet('<div class="big">Не получилось построить маршрут</div><div class="sub">' + esc(e.message || e) + '. Проверьте интернет и попробуйте ещё раз.</div>'); }
-}
-
-/* ---------- Overpass ---------- */
-async function overpass(q) {
-  const eps = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
-  let err;
-  for (const u of eps) {
-    try {
-      const r = await fetch(u, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'data=' + encodeURIComponent(q)});
-      if (!r.ok) throw new Error('Overpass ' + r.status);
-      return await r.json();
-    } catch (e) { err = e; }
+function matchRels(A, B, o, d, Rs) {
+  const mb = new Map(B.map(r => [r.id, r])), out = [];
+  for (const r of A) {
+    if (!mb.has(r.id)) continue; let ia = -1, da = 1e9, ib = -1, db = 1e9;
+    r.stops.forEach((s, i) => { const d1 = hav(o.lat, o.lon, s.la, s.lo), d2 = hav(d.lat, d.lon, s.la, s.lo); if (d1 < da) { da = d1; ia = i; } if (d2 < db) { db = d2; ib = i; } });
+    if (ia < 0 || ib <= ia || da > Rs || db > Rs) continue; out.push({r, ia, ib, da, db});
   }
-  throw err || new Error('Нет связи с сервером данных');
+  return out;
+}
+function walkLeg(a, b, toName) { const d = hav(a.lat, a.lon, b.lat, b.lon) * 1.25; return {type: 'walk', coords: [[a.lon, a.lat], [b.lon, b.lat]], dist: d, min: d / WALK, toName: toName || ''}; }
+function rebuild(opt) {
+  let coords = []; opt.legs.forEach(L => { L.i0 = coords.length; coords = coords.concat(L.coords); L.i1 = coords.length - 1; });
+  opt.coords = coords; opt.cum = prep(coords); opt.total = opt.cum[opt.cum.length - 1] || 1;
+  opt.legs.forEach(L => { L.a0 = opt.cum[L.i0]; L.a1 = opt.cum[L.i1]; L.cum = prep(L.coords); });
+}
+function finish(opt) { opt.min = opt.legs.reduce((s, L) => s + (L.min || 0) + (L.wait || 0), 0); rebuild(opt); opt.dist = opt.total; opt.walk = opt.legs.filter(L => L.type === 'walk').reduce((s, L) => s + L.dist, 0); return opt; }
+function rideOption(m, o, d) {
+  const r = m.r, V = VEH[r.type] || VEH.bus, seg = r.stops.slice(m.ia, m.ib + 1), coords = seg.map(s => [s.lo, s.la]);
+  let len = 0; for (let i = 1; i < coords.length; i++) len += hav(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
+  const sa = r.stops[m.ia], sb = r.stops[m.ib], legs = [];
+  if (m.da > 30) legs.push(walkLeg(o, {lat: sa.la, lon: sa.lo}, sa.n));
+  legs.push({type: r.type, ref: r.ref || r.name, color: r.col || V.col, coords, dist: len, min: len / V.sp, wait: V.wait, relId: r.id, from: sa.n, to: sb.n, n: m.ib - m.ia, dirTo: r.to || r.stops[r.stops.length - 1].n, stops: seg});
+  if (m.db > 30) legs.push(walkLeg({lat: sb.la, lon: sb.lo}, d, ''));
+  return finish({id: 'r' + r.id + '_' + m.ia + '_' + m.ib, kind: 'transit', mode: 'transit', legs});
+}
+async function transitRides(o, d, kind) {
+  const [A, B] = await Promise.all([nearRoutes(o, kind), nearRoutes(d, kind)]);
+  let ms = matchRels(A, B, o, d, kind === 't' ? 2500 : 500); if (kind === 't') ms = ms.filter(m => isCommuter(m.r));
+  const best = new Map();
+  ms.forEach(m => { const op = rideOption(m, o, d), k = m.r.type + '|' + (m.r.ref || m.r.name); if (!best.has(k) || best.get(k).min > op.min) best.set(k, op); });
+  return [...best.values()].sort((a, b) => a.min - b.min).slice(0, 8);
 }
 
-/* ---------- метро ---------- */
-let metro = null, metroLoading = null;
+/* ================= метро ================= */
+let metroMem = null, metroLoading = null;
 async function loadMetro() {
-  if (metro) return metro;
-  if (metroLoading) return metroLoading;
+  if (metroMem) return metroMem; if (metroLoading) return metroLoading;
   metroLoading = (async () => {
-    try { const c = localStorage.getItem('novaMetro2'); if (c) { metro = JSON.parse(c); return metro; } } catch (e) {}
+    const c = await kv.get('metro3');
+    if (c && c.v === 3 && c.M && Date.now() - c.ts < 30 * 864e5) { metroMem = c.M; return metroMem; }
     const bb = '59.6,29.5,60.3,31.0';
-    const j = await overpass(`[out:json][timeout:60];rel["route"="subway"](${bb})->.r;node(r.r)->.n;.r out body;.n out body;node["railway"="subway_entrance"](${bb});out body;`);
-    const nodes = new Map(), rels = [], ent = [];
-    for (const e of j.elements) {
-      if (e.type === 'node') { if (e.tags && e.tags.railway === 'subway_entrance') ent.push([e.lat, e.lon]); else nodes.set(e.id, e); }
-      else if (e.type === 'relation') rels.push(e);
-    }
-    const st = [], idx = new Map(), lines = [], adj = [];
-    const nodeIdx = id => { if (idx.has(id)) return idx.get(id); const n = nodes.get(id); const i = st.length; st.push({name: (n.tags && n.tags.name) || 'Станция', lat: n.lat, lon: n.lon, lines: []}); adj.push([]); idx.set(id, i); return i; };
-    for (const r of rels) {
-      const seq = (r.members || []).filter(m => m.type === 'node' && /^stop/.test(m.role) && nodes.has(m.ref)).map(m => nodeIdx(m.ref));
-      const stops = seq.filter((v, i) => i === 0 || v !== seq[i - 1]);
-      if (stops.length < 2) continue;
-      const t = r.tags || {}, li = lines.length;
-      lines.push({name: t.ref ? 'Линия ' + t.ref : (t.name || 'Линия'), full: t.name || '', color: t.colour || t.color || null, stops});
-      stops.forEach(s => { if (!st[s].lines.includes(li)) st[s].lines.push(li); });
-      for (let i = 1; i < stops.length; i++) {
-        const a = stops[i - 1], b = stops[i];
-        const w = Math.max(1.5, hav(st[a].lat, st[a].lon, st[b].lat, st[b].lon) / 600 + 1.2);
-        adj[a].push({to: b, w, k: 'ride', li}); adj[b].push({to: a, w, k: 'ride', li});
-      }
-    }
-    for (let a = 0; a < st.length; a++) for (let b = a + 1; b < st.length; b++) {
-      const d = hav(st[a].lat, st[a].lon, st[b].lat, st[b].lon);
-      const shared = st[a].lines.some(l => st[b].lines.includes(l));
-      let w = null, k = 'xfer';
-      if (d < 60) { w = shared ? 0 : 0.5; if (shared) k = 'same'; }
-      else if (!shared && d < 450 && st[a].name === st[b].name) w = 3;
-      else if (!shared && d < 350) w = 5;
-      if (w !== null) { adj[a].push({to: b, w, k}); adj[b].push({to: a, w, k}); }
-    }
-    metro = {st, lines, adj, ent};
-    try { localStorage.setItem('novaMetro2', JSON.stringify(metro)); } catch (e) {}
-    return metro;
+    try {
+      const j = await overpass(`[out:json][timeout:60];rel["route"="subway"](${bb})->.r;node(r.r)->.n;.r out body;.n out body;node["railway"="subway_entrance"](${bb});out body;`, 60000);
+      const M = buildMetro(j); if (!M.st.length) throw new Error(t('err_metro'));
+      metroMem = M; kv.set('metro3', {v: 3, ts: Date.now(), M}); return M;
+    } catch (e) { if (c && c.M) { metroMem = c.M; return metroMem; } throw e; }
   })();
   try { return await metroLoading; } finally { metroLoading = null; }
 }
-
-function metroPath(M, o, d, maxWalk = 2200) {
+const PALETTE = ['#e4261b', '#0078c9', '#2ca02c', '#f58220', '#7f3f98', '#009688', '#795548'];
+function buildMetro(j) {
+  const nodes = new Map(), rels = [], ent = [];
+  for (const e of j.elements) { if (e.type === 'node') { if (e.tags && e.tags.railway === 'subway_entrance') ent.push([e.lat, e.lon]); else nodes.set(e.id, e); } else if (e.type === 'relation') rels.push(e); }
+  const st = [], n2s = new Map(), lines = [], lidx = new Map(), adj = [], seen = new Set();
+  const stFor = n => {
+    if (n2s.has(n.id)) return n2s.get(n.id);
+    const nm = (n.tags && n.tags.name) || '?';
+    for (let i = 0; i < st.length; i++) if (st[i].name === nm && hav(st[i].lat, st[i].lon, n.lat, n.lon) < 300) { n2s.set(n.id, i); return i; }
+    st.push({name: nm, en: (n.tags && n.tags['name:en']) || '', lat: n.lat, lon: n.lon, lines: []}); adj.push([]); n2s.set(n.id, st.length - 1); return st.length - 1;
+  };
+  for (const r of rels) {
+    const raw = (r.members || []).filter(m => m.type === 'node' && /^stop/.test(m.role) && nodes.has(m.ref)).map(m => stFor(nodes.get(m.ref)));
+    const stops = raw.filter((v, i) => i === 0 || v !== raw[i - 1]); if (stops.length < 2) continue;
+    const tg = r.tags || {}, key = (tg.ref || tg.name || r.id) + '|' + (tg.colour || tg.color || '');
+    let li = lidx.get(key); if (li == null) { li = lines.length; lidx.set(key, li); lines.push({ref: tg.ref || '', name: tg.name || '', color: tg.colour || tg.color || PALETTE[li % PALETTE.length], variants: []}); }
+    lines[li].variants.push(stops);
+    for (let i = 0; i < stops.length; i++) {
+      if (!st[stops[i]].lines.includes(li)) st[stops[i]].lines.push(li);
+      if (i) { const a = stops[i - 1], b = stops[i], k = li + '|' + Math.min(a, b) + '|' + Math.max(a, b); if (seen.has(k)) continue; seen.add(k); const w = Math.max(1.5, hav(st[a].lat, st[a].lon, st[b].lat, st[b].lon) / 650 + 1); adj[a].push({to: b, w, k: 'ride', li}); adj[b].push({to: a, w, k: 'ride', li}); }
+    }
+  }
+  for (let a = 0; a < st.length; a++) for (let b = a + 1; b < st.length; b++) {
+    if (st[a].lines.some(l => st[b].lines.includes(l))) continue;
+    const d = hav(st[a].lat, st[a].lon, st[b].lat, st[b].lon);
+    if (d < 400) { const w = 2.5 + d / WALK; adj[a].push({to: b, w, k: 'xfer'}); adj[b].push({to: a, w, k: 'xfer'}); }
+  }
+  return {st, lines, adj, ent};
+}
+const mref = L => L.ref ? (S.lang === 'ru' ? 'М' : 'M') + L.ref : L.name;
+function dijk(M, init) {
   const n = M.st.length, dist = new Array(n).fill(Infinity), prev = new Array(n).fill(null), done = new Array(n).fill(false);
-  for (let i = 0; i < n; i++) { const w = hav(o.lat, o.lon, M.st[i].lat, M.st[i].lon); if (w < maxWalk) dist[i] = w / WALK + 4; }
+  init.forEach(([i, c]) => { if (c < dist[i]) dist[i] = c; });
   for (;;) {
-    let u = -1, best = Infinity;
-    for (let i = 0; i < n; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
+    let u = -1, b = Infinity; for (let i = 0; i < n; i++) if (!done[i] && dist[i] < b) { b = dist[i]; u = i; }
     if (u < 0) break; done[u] = true;
     for (const e of M.adj[u]) { const nd = dist[u] + e.w; if (nd < dist[e.to]) { dist[e.to] = nd; prev[e.to] = {from: u, e}; } }
   }
-  let end = -1, tot = Infinity;
-  for (let i = 0; i < n; i++) { const w = hav(d.lat, d.lon, M.st[i].lat, M.st[i].lon); if (w < maxWalk && dist[i] + w / WALK < tot) { tot = dist[i] + w / WALK; end = i; } }
-  if (end < 0) return null;
-  const path = []; let c = end;
-  while (c !== null) { const p = prev[c]; path.unshift({i: c, e: p ? p.e : null}); c = p ? p.from : null; }
-  return {path, total: tot, end};
+  return {dist, prev};
 }
-
-function describeMetro(M, o, d, res) {
-  const {path} = res, first = path[0].i, last = path[path.length - 1].i;
-  const w1 = hav(o.lat, o.lon, M.st[first].lat, M.st[first].lon), w2 = hav(d.lat, d.lon, M.st[last].lat, M.st[last].lon);
-  const steps = []; let cur = null;
+function planMetro(M, A, B, maxWalk = 2000) {
+  const init = []; if (A.st != null) init.push([A.st, 0]); else M.st.forEach((s, i) => { const w = hav(A.lat, A.lon, s.lat, s.lon); if (w < maxWalk) init.push([i, w / WALK + 3]); });
+  if (!init.length) return null;
+  const {dist, prev} = dijk(M, init); let end = -1, tot = Infinity;
+  for (let i = 0; i < M.st.length; i++) { if (dist[i] === Infinity) continue; let ex; if (B.st != null) ex = i === B.st ? 0 : Infinity; else { const w = hav(B.lat, B.lon, M.st[i].lat, M.st[i].lon); ex = w < maxWalk ? w / WALK + 1 : Infinity; } if (dist[i] + ex < tot) { tot = dist[i] + ex; end = i; } }
+  if (end < 0) return null;
+  const path = []; let c = end; while (c !== null) { const p = prev[c]; path.unshift({i: c, e: p ? p.e : null}); c = p ? p.from : null; }
+  return {path, total: tot};
+}
+function lineDir(M, li, a, b) { const L = M.lines[li]; for (const v of L.variants) { const ia = v.indexOf(a), ib = v.indexOf(b); if (ia >= 0 && ib > ia) return sname(M.st[v[v.length - 1]].name, M.st[v[v.length - 1]].en); } for (const v of L.variants) { const ia = v.indexOf(a), ib = v.indexOf(b); if (ia >= 0 && ib >= 0 && ib < ia) return sname(M.st[v[0]].name, M.st[v[0]].en); } return ''; }
+function metroLegs(M, res, A, B) {
+  const path = res.path, first = path[0].i, last = path[path.length - 1].i, legs = [], sp = i => ({lat: M.st[i].lat, lon: M.st[i].lon}), nm = i => sname(M.st[i].name, M.st[i].en);
+  if (A.st == null && hav(A.lat, A.lon, M.st[first].lat, M.st[first].lon) > 25) legs.push(walkLeg(A, sp(first), nm(first)));
+  let cur = null, firstRide = true;
   for (let k = 1; k < path.length; k++) {
     const e = path[k].e, a = path[k - 1].i, b = path[k].i;
-    if (e.k === 'ride') {
-      if (cur && cur.li === e.li) { cur.to = b; cur.n++; }
-      else { cur = {t: 'ride', li: e.li, from: a, to: b, n: 1}; steps.push(cur); }
-    } else if (e.k === 'xfer') { steps.push({t: 'xfer', from: a, to: b}); cur = null; }
+    if (e.k === 'ride') { if (cur && cur.li === e.li) { cur.idx.push(b); cur.min += e.w; } else { cur = {li: e.li, idx: [a, b], min: e.w}; legs.push(cur); } }
+    else { cur = null; const w = walkLeg(sp(a), sp(b), t('xfer_to', nm(b))); w.min = e.w; w.xfer = true; legs.push(w); }
   }
-  return {w1, w2, steps, first, last};
-}
-
-function drawMetro(M, o, d, ds) {
-  const feats = [], pts = [];
-  feats.push(line([[o.lon, o.lat], [M.st[ds.first].lon, M.st[ds.first].lat]], {dash: true}));
-  feats.push(line([[M.st[ds.last].lon, M.st[ds.last].lat], [d.lon, d.lat]], {dash: true}));
-  const all = [[o.lon, o.lat], [d.lon, d.lat]];
-  for (const s of ds.steps) {
-    if (s.t === 'ride') {
-      const L = M.lines[s.li], a = L.stops.indexOf(s.from), b = L.stops.indexOf(s.to);
-      let seg = a <= b ? L.stops.slice(a, b + 1) : L.stops.slice(b, a + 1).reverse();
-      if (a < 0 || b < 0) seg = [s.from, s.to];
-      const co = seg.map(i => [M.st[i].lon, M.st[i].lat]);
-      feats.push(line(co, {color: L.color || S.accent}));
-      co.forEach(c => all.push(c));
-      seg.forEach(i => pts.push({type: 'Feature', properties: {color: L.color || S.accent}, geometry: {type: 'Point', coordinates: [M.st[i].lon, M.st[i].lat]}}));
-    } else feats.push(line([[M.st[s.from].lon, M.st[s.from].lat], [M.st[s.to].lon, M.st[s.to].lat]], {dash: true}));
+  const out = [];
+  for (const L of legs) {
+    if (L.type) { out.push(L); continue; }
+    const ln = M.lines[L.li], coords = L.idx.map(i => [M.st[i].lon, M.st[i].lat]);
+    let len = 0; for (let i = 1; i < coords.length; i++) len += hav(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
+    out.push({type: 'subway', ref: mref(ln), color: ln.color, coords, dist: len, min: L.min, wait: firstRide ? 3 : 0, from: nm(L.idx[0]), to: nm(L.idx[L.idx.length - 1]), n: L.idx.length - 1, dirTo: lineDir(M, L.li, L.idx[0], L.idx[L.idx.length - 1]), stops: L.idx.map(i => ({n: nm(i), la: M.st[i].lat, lo: M.st[i].lon}))});
+    firstRide = false;
   }
-  setData('route', feats); setData('pts', pts); fit(all);
+  if (B.st == null && hav(B.lat, B.lon, M.st[last].lat, M.st[last].lon) > 25) out.push(walkLeg(sp(last), B, ''));
+  return out;
+}
+function metroOption(M, o, d, onlyStations) {
+  const A = onlyStations && onlyStations.a != null ? {st: onlyStations.a} : {lat: o.lat, lon: o.lon}, B = onlyStations && onlyStations.b != null ? {st: onlyStations.b} : {lat: d.lat, lon: d.lon};
+  const res = planMetro(M, A, B); if (!res) return null; const legs = metroLegs(M, res, A, B);
+  if (!legs.some(l => l.type === 'subway')) return null; return finish({id: 'metro', kind: 'transit', mode: 'transit', legs});
 }
 
-function metroHtml(M, o, d, ds, total) {
-  const dir = (s) => { const L = M.lines[s.li], a = L.stops.indexOf(s.from), b = L.stops.indexOf(s.to); const t = a <= b ? L.stops[L.stops.length - 1] : L.stops[0]; return M.st[t].name; };
-  let h = `<div class="big">${fmtT(total)}</div><div class="sub">🚇 Метро до «${esc(d.name || dest.name)}»</div><div style="margin-top:8px">`;
-  h += step('#9aa3b2', `Пешком до станции <b>${esc(M.st[ds.first].name)}</b> · ${fmtD(ds.w1)} (~${fmtT(ds.w1 / WALK)})`);
-  for (const s of ds.steps) {
-    if (s.t === 'ride') { const L = M.lines[s.li]; h += step(L.color || 'var(--accent)', `<span class="badge" style="background:${L.color || 'var(--accent)'}">${esc(L.name.replace('Линия ', ''))}</span> <b>${esc(M.st[s.from].name)}</b> → <b>${esc(M.st[s.to].name)}</b><div class="sub">${s.n} ${s.n === 1 ? 'перегон' : 'перегонов'}, в сторону «${esc(dir(s))}»</div>`); }
-    else h += step('#9aa3b2', `Пересадка: ${esc(M.st[s.from].name)} → ${esc(M.st[s.to].name)}`);
+/* ================= маршруты OSRM (пешком / вело / авто) ================= */
+const OSRM = {foot: 'routed-foot/route/v1/foot', bike: 'routed-bike/route/v1/bike', car: 'routed-car/route/v1/driving'};
+const SPD = {foot: 80, bike: 250};
+function instr(st) {
+  const m = st.maneuver, ty = m.type, mod = m.modifier || 'straight', on = st.name ? ' ' + t('on_street', st.name) : '';
+  if (ty === 'arrive') return {txt: t(mod === 'left' ? 'i_arrive_left' : mod === 'right' ? 'i_arrive_right' : 'i_arrive'), ar: '🏁'};
+  if (/roundabout|rotary/.test(ty)) return {txt: t('i_round', m.exit || '') + on, ar: '⟳'};
+  if (ty === 'fork') { if (mod.includes('left')) return {txt: t('i_fork_l') + on, ar: '↖'}; if (mod.includes('right')) return {txt: t('i_fork_r') + on, ar: '↗'}; }
+  if (ty === 'merge') return {txt: t('i_merge') + on, ar: '↑'};
+  const D = {'left': ['i_left', '↰'], 'right': ['i_right', '↱'], 'slight left': ['i_sl', '↖'], 'slight right': ['i_sr', '↗'], 'sharp left': ['i_shl', '↰'], 'sharp right': ['i_shr', '↱'], 'uturn': ['i_uturn', '↶'], 'straight': ['i_straight', '↑']}, d = D[mod] || D.straight;
+  return {txt: t(d[0]) + on, ar: d[1]};
+}
+function buildMan(opt) {
+  const out = [], steps = opt.steps || [], n = steps.length;
+  steps.forEach((st, i) => {
+    if (i === 0) return; const m = st.maneuver, last = i === n - 1;
+    if (!last && (m.type === 'new name' || m.type === 'continue' || m.type === 'notification') && (!m.modifier || m.modifier === 'straight')) return;
+    const a = last ? opt.total : nearestOn(opt.coords, opt.cum, m.location[1], m.location[0]).along; out.push(Object.assign({along: a}, instr(st)));
+  });
+  out.sort((x, y) => x.along - y.along); if (!out.length || out[out.length - 1].ar !== '🏁') out.push({along: opt.total, txt: t('arrived'), ar: '🏁'}); return out;
+}
+async function osrmOptions(o, d, mode) {
+  const u = `https://routing.openstreetmap.de/${OSRM[mode]}/${o.lon},${o.lat};${d.lon},${d.lat}?overview=full&geometries=geojson&steps=true&alternatives=true`;
+  let j; try { j = await fj(u, {ms: 15000}); } catch (e) { j = await fj(u, {ms: 15000}); }
+  if (!j.routes || !j.routes.length) throw new Error(t('err_noroute'));
+  return j.routes.slice(0, 3).map((rt, i) => {
+    const steps = (rt.legs[0] && rt.legs[0].steps) || [], min = mode === 'car' ? rt.duration / 60 : rt.distance / SPD[mode];
+    const opt = {id: mode + i + '_' + Math.round(rt.distance), kind: 'osrm', mode, min, legs: [{type: mode, coords: rt.geometry.coordinates, min, ref: '', color: null}], steps};
+    rebuild(opt); opt.dist = rt.distance; opt.man = buildMan(opt); opt.via = [...new Set(steps.map(s => s.name).filter(Boolean))].slice(0, 3); return opt;
+  });
+}
+
+/* ================= уточнение геометрии транспорта ================= */
+function stitch(ways) {
+  if (!ways.length) return []; const dd = (a, b) => hav(a[1], a[0], b[1], b[0]); let out = ways[0].slice();
+  if (ways.length > 1) { const w = ways[1], s = out[0], e = out[out.length - 1], dEnd = Math.min(dd(e, w[0]), dd(e, w[w.length - 1])), dStart = Math.min(dd(s, w[0]), dd(s, w[w.length - 1])); if (dStart < dEnd) out.reverse(); }
+  for (let i = 1; i < ways.length; i++) { const w = ways[i].slice(), e = out[out.length - 1]; if (dd(e, w[w.length - 1]) < dd(e, w[0])) w.reverse(); out = out.concat(w); }
+  return out;
+}
+async function relGeom(id) {
+  const key = 'geom3|' + id, c = await kv.get(key); if (c) return c;
+  const j = await overpass(`[out:json][timeout:25];rel(${id});out geom;`, 25000), r = (j.elements || []).find(e => e.type === 'relation'); if (!r) return null;
+  const ways = (r.members || []).filter(m => m.type === 'way' && m.geometry && m.geometry.length > 1 && !/platform|stop/.test(m.role || '')).map(m => m.geometry.map(g => [g.lon, g.lat]));
+  const line = stitch(ways); if (line.length > 1) kv.set(key, line); return line;
+}
+function cutLine(line, a, b) {
+  if (line.length < 2) return null; let ia = 0, da = 1e12, ib = 0, db = 1e12;
+  line.forEach((p, i) => { const d1 = hav(a.la, a.lo, p[1], p[0]), d2 = hav(b.la, b.lo, p[1], p[0]); if (d1 < da) { da = d1; ia = i; } if (d2 < db) { db = d2; ib = i; } });
+  if (da > 150 || db > 150 || ia >= ib) return null; return [[a.lo, a.la]].concat(line.slice(ia, ib + 1), [[b.lo, b.la]]);
+}
+async function refineOption(opt) {
+  if (opt.refined || opt.kind !== 'transit') return false; opt.refined = true; let ch = false;
+  await Promise.all(opt.legs.map(async L => {
+    try {
+      if (L.type === 'walk') {
+        if (L.dist < 120) return; const a = L.coords[0], b = L.coords[L.coords.length - 1];
+        const j = await fj(`https://routing.openstreetmap.de/routed-foot/route/v1/foot/${a[0]},${a[1]};${b[0]},${b[1]}?overview=full&geometries=geojson`, {ms: 9000}), rt = j.routes && j.routes[0];
+        if (rt) { L.coords = [a].concat(rt.geometry.coordinates, [b]); L.dist = rt.distance; if (!L.xfer) L.min = rt.distance / WALK; ch = true; }
+      } else if (L.relId && L.stops) {
+        const line = await relGeom(L.relId); if (!line) return; const a = L.stops[0], b = L.stops[L.stops.length - 1];
+        const c = cutLine(line, a, b) || cutLine(line.slice().reverse(), a, b);
+        if (c) { L.coords = c; L.dist = prep(c).slice(-1)[0]; L.min = L.dist / (VEH[L.type] || VEH.bus).sp; ch = true; }
+      }
+    } catch (e) {}
+  }));
+  if (ch) finish(opt); return ch;
+}
+
+
+/* ================= режимы ================= */
+const MODES = [['foot', '🚶', 'm_foot'], ['bike', '🚲', 'm_bike'], ['car', '🚗', 'm_car'], ['transit', '🚌', 'm_transit']];
+const MODE_IC = {foot: '🚶', bike: '🚲', car: '🚗', transit: '🚌'};
+function renderModes() { $('#modes').innerHTML = MODES.map(m => `<button data-m="${m[0]}" class="${S.mode === m[0] ? 'on' : ''}">${m[1]} ${t(m[2])}</button>`).join(''); }
+$('#modes').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.mode = b.dataset.m; save(); renderModes(); if (dest) buildRoute(); };
+
+/* ================= построение маршрутов ================= */
+const RT = {on: false, opts: [], sel: null, notes: [], seq: 0, min: false, only: null, st: null};
+let LINE = null;
+const curOpt = () => RT.opts.find(o => o.id === RT.sel) || null;
+function clearMarkers() { routeMarkers.forEach(m => m.remove()); routeMarkers = []; }
+function clearRouteDraw() { clearMarkers(); setG('route', []); setG('pts', []); }
+function closeRoute() { RT.on = false; RT.seq++; LINE = null; clearRouteDraw(); $('#rsheet').classList.remove('on'); }
+
+async function buildRoute(arg) {
+  if (!dest || !map) return;
+  const o = origin();
+  if (!o) { toast(t('need_start'), 5000); openPicker('from'); return; }
+  $('#mprompt').classList.remove('on'); LINE = null; clearRouteDraw(); RT.opts = []; RT.sel = null; RT.notes = []; RT.on = true; RT.min = false; RT.only = arg && arg.only || null; RT.st = arg && arg.st || null;
+  const my = ++RT.seq, d = {lat: dest.lat, lon: dest.lon};
+  const task = (key, label, fn) => { const n = {key, label, state: 'load', fn}; RT.notes.push(n); runTask(n, my); };
+  if (S.mode !== 'transit') task('osrm', t('m_' + S.mode), () => osrmOptions(o, d, S.mode));
+  else {
+    if (!RT.only && hav(o.lat, o.lon, d.lat, d.lon) < 4000) task('walk', t('m_foot'), async () => { const a = await osrmOptions(o, d, 'foot'); a[0].id = 'walk'; return [a[0]]; });
+    task('metro', t('t_metro'), async () => { const M = await loadMetro(); const op = metroOption(M, o, d, RT.st); return op ? [op] : []; });
+    if (!RT.only) { task('surf', t('t_surface'), () => transitRides(o, d, 's')); task('train', t('t_train'), () => transitRides(o, d, 't')); }
   }
-  h += step('#ef4444', `Выход на <b>${esc(M.st[ds.last].name)}</b>, пешком до цели · ${fmtD(ds.w2)} (~${fmtT(ds.w2 / WALK)})`);
-  return h + '</div><div class="sub" style="margin-top:6px">Время ориентировочное, без учёта интервалов движения.</div>';
+  renderRoute();
+}
+function runTask(n, my) {
+  n.state = 'load'; renderRoute();
+  n.fn().then(arr => { if (my !== RT.seq) return; n.state = 'ok'; n.count = arr.length; addOpts(arr); }).catch(e => { if (my !== RT.seq) return; n.state = 'err'; n.err = (e && e.message) || ''; renderRoute(); });
+}
+function addOpts(arr) {
+  arr.forEach(x => { if (!RT.opts.find(y => y.id === x.id)) RT.opts.push(x); }); RT.opts.sort((a, b) => a.min - b.min);
+  if (RT.sel == null && RT.opts.length) selectOpt(RT.opts[0].id); else { drawRoute(false); renderRoute(); }
+}
+function selectOpt(k) {
+  const o = typeof k === 'number' ? RT.opts[k] : RT.opts.find(x => x.id === k); if (!o) return;
+  RT.sel = o.id; drawRoute(true); renderRoute();
+  if (o.kind === 'transit' && !o.refined) refineOption(o).then(ch => { if (ch && RT.sel === o.id && !nav) { drawRoute(false); renderRoute(); } });
+}
+function drawRoute(fit) {
+  clearMarkers(); const sel = curOpt(), feats = [], pts = [];
+  RT.opts.forEach((o, i) => { if (o.id !== RT.sel) feats.push(feat(o.coords, {k: 'alt', i})); });
+  if (sel) sel.legs.forEach(L => {
+    const walk = L.type === 'walk'; feats.push(feat(L.coords, {k: walk ? 'walk' : 'main', color: walk ? null : (L.color || null)}));
+    if (!walk && sel.kind === 'transit') {
+      (L.stops || []).forEach((s, i, a) => pts.push(ptf([s.lo, s.la], {color: L.color, r: (i === 0 || i === a.length - 1) ? 7 : 3.5})));
+      const V = VEH[L.type] || VEH.bus, el = document.createElement('div'); el.className = 'vb'; el.style.setProperty('--vc', L.color || V.col); el.textContent = V.ic + ' ' + (L.ref || '');
+      const mid = L.coords[Math.floor(L.coords.length / 2)]; routeMarkers.push(new maplibregl.Marker({element: el}).setLngLat(mid).addTo(map));
+    }
+  });
+  setG('route', feats); setG('pts', pts); if (fit && sel) fitTo(sel.coords);
+}
+const legIcon = L => L.type === 'walk' ? '🚶' : (VEH[L.type] || {ic: MODE_IC[L.type] || '➡️'}).ic;
+function legTitle(L) {
+  if (L.type === 'walk') return L.xfer ? L.toName : (L.toName ? t('walk_to', fmtD(L.dist), L.toName) : t('walk_d', fmtD(L.dist)));
+  if (L.type === 'subway') return t('ride_metro', L.ref, L.from, L.to, L.n, L.dirTo || '—');
+  if (VEH[L.type]) return t('ride_veh', t('v_' + L.type), L.ref, L.from || t('stop'), L.n, L.to || t('stop'));
+  return t('m_' + L.type);
+}
+function optChips(o) {
+  if (o.kind === 'osrm') return `<span class="badge" style="background:var(--muted)">${MODE_IC[o.mode]} ${o.id === 'walk' ? t('m_foot') : t('m_' + o.mode)}</span>${o.via && o.via.length ? `<span class="sub">${t('via')} ${esc(o.via[0])}</span>` : ''}`;
+  return o.legs.map(L => L.type === 'walk' ? `<span class="sub">🚶${Math.max(1, Math.round(L.min))}</span>` : `<span class="badge" style="background:${esc(L.color || '#2563eb')}">${legIcon(L)} ${esc(L.ref || '')}</span>`).join('<span class="sub">›</span>');
+}
+function renderRoute() {
+  const el = $('#rsheet');
+  if (LINE) { renderLine(); return; }
+  if (!RT.on || nav) { el.classList.remove('on'); return; }
+  const sel = curOpt();
+  let h = `<div class="grab" id="rgrab"></div><div class="rhead"><div style="min-width:0"><div class="big">${sel ? fmtT(sel.min) + ' · ' + fmtD(sel.dist) : t('building')}</div><div class="sub">${esc(dest ? dest.name : '')}</div></div><button class="x" id="rx">×</button></div>`;
+  if (!RT.min) {
+    h += RT.notes.filter(n => n.state === 'load').map(n => `<div class="note"><i class="spin"></i>${esc(n.label)}…</div>`).join('');
+    h += RT.notes.filter(n => n.state === 'err').map(n => `<div class="note">⚠️ ${esc(n.label)}: ${esc(n.err)} <a class="retry" data-retry="${n.key}">${t('retry')}</a></div>`).join('');
+    const done = !RT.notes.some(n => n.state === 'load');
+    if (done && !RT.opts.length && !RT.notes.some(n => n.state === 'err')) h += `<div class="empty">${t('no_routes')}</div>`;
+    if (RT.opts.length > 1 || (sel && sel.kind === 'transit')) h += '<div class="opts">' + RT.opts.map((o, i) => `<div class="o ${o.id === RT.sel ? 'sel' : ''}" data-id="${esc(o.id)}" style="animation-delay:${i * 40}ms"><div class="ch">${optChips(o)}</div><div class="tm"><b>${fmtT(o.min)}</b><div class="sub">${o.kind === 'transit' ? '🚶 ' + fmtD(o.walk) : fmtD(o.dist)}</div></div></div>`).join('') + '</div>';
+    if (done && RT.notes.some(n => n.key === 'surf' && n.state === 'ok') && S.mode === 'transit' && !RT.opts.some(o => o.legs.some(L => VEH[L.type] && L.type !== 'subway'))) h += `<div class="note">ℹ️ ${t('no_direct')}</div>`;
+    if (sel) {
+      h += '<div class="steps">';
+      if (sel.kind === 'transit') sel.legs.forEach(L => { h += `<div class="step"><div class="si">${legIcon(L)}</div><div><div>${esc(legTitle(L))}</div><div class="sub">${fmtT(L.min)}${L.wait ? ' · ' + t('wait_n', L.wait) : ''}</div></div></div>`; });
+      else (sel.man || []).slice(0, 14).forEach((m, i, a) => { h += `<div class="step"><div class="si">${m.ar}</div><div><div>${esc(m.txt)}</div><div class="sub">${fmtD(m.along - (i ? a[i - 1].along : 0))}</div></div></div>`; });
+      h += '</div>';
+    }
+  }
+  h += `<div class="acts"><button class="btn" id="goBtn" ${sel ? '' : 'disabled style="opacity:.5"'}>▶ ${t('start')}</button><button class="btn ghost" id="simBtn" ${sel ? '' : 'disabled style="opacity:.5"'}>${t('demo')}</button></div>`;
+  el.innerHTML = h; el.classList.add('on');
+  $('#rx').onclick = closeRoute; $('#rgrab').onclick = () => { RT.min = !RT.min; renderRoute(); };
+  el.querySelectorAll('.o').forEach(x => x.onclick = () => selectOpt(x.dataset.id));
+  el.querySelectorAll('[data-retry]').forEach(a => a.onclick = () => { const n = RT.notes.find(x => x.key === a.dataset.retry); if (n) runTask(n, RT.seq); });
+  $('#goBtn').onclick = () => startNav(false); $('#simBtn').onclick = () => startNav(true);
 }
 
-async function routeMetro(o) {
-  toast('Загружаю схему метро…', 2500);
-  const M = await loadMetro();
-  if (!M.st.length) throw new Error('Данные метро недоступны');
-  const res = metroPath(M, o, dest);
-  if (!res) { sheet('<div class="big">Метро далеко</div><div class="sub">В радиусе ~2 км от старта или цели нет станций. Выберите другой способ.</div>'); return; }
-  const direct = hav(o.lat, o.lon, dest.lat, dest.lon) / WALK;
-  const ds = describeMetro(M, o, dest, res);
-  if (!ds.steps.length) { sheet('<div class="big">Метро не нужно</div><div class="sub">Станции у старта и цели совпадают, проще дойти пешком (~' + fmtT(direct) + ').</div>'); return; }
-  drawMetro(M, o, dest, ds);
-  sheet(metroHtml(M, o, dest, ds, res.total) + (direct < res.total ? `<div class="sub" style="margin-top:6px">⚠️ Пешком выйдет быстрее: ~${fmtT(direct)}.</div>` : ''));
+/* ================= пошаговая навигация ================= */
+const OFFR = {foot: 45, bike: 55, car: 70}, THR = {foot: [60, 15], bike: [120, 25], car: [350, 50]}, NAVZ = {foot: 18.2, bike: 17.7, car: 17, transit: 17.6};
+function speak(txt) { if (!S.voice || !('speechSynthesis' in window)) return; try { const u = new SpeechSynthesisUtterance(txt); u.lang = S.lang === 'en' ? 'en-US' : 'ru-RU'; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
+function followCam() {
+  if (!nav || !follow || !map || !me) return;
+  map.easeTo({center: [me.lon, me.lat], bearing: (me.h != null && me.sp > .8) ? me.h : map.getBearing(), pitch: S.d3 ? 60 : 0, zoom: NAVZ[nav.opt.mode] || 17.5, duration: 900, easing: x => x, padding: {top: S.d3 ? 240 : 150, bottom: 110, left: 0, right: 0}});
 }
-
-/* ---------- «я у входа в метро» ---------- */
-let metroSeen = {};
-async function checkMetro() {
-  if (!me) return;
-  let M = metro;
-  if (!M) { if (!checkMetro.started) { checkMetro.started = true; loadMetro().then(() => checkMetro()).catch(() => { checkMetro.started = false; }); } return; }
-  let near = null, nd = 1e9;
-  for (const e of M.ent) { const d = hav(me.lat, me.lon, e[0], e[1]); if (d < nd) nd = d; }
-  if (nd > 70) { // запасной вариант: сама станция
-    nd = 1e9; M.st.forEach((s, i) => { const d = hav(me.lat, me.lon, s.lat, s.lon); if (d < nd) { nd = d; near = i; } });
-    if (nd > 100) return;
-  } else { let bd = 1e9; M.st.forEach((s, i) => { const d = hav(me.lat, me.lon, s.lat, s.lon); if (d < bd) { bd = d; near = i; } }); }
-  showMetroSheet(near, false);
+async function startNav(simulate) {
+  const o = curOpt(); if (!o || !map) return;
+  if (!simulate) { if (startPt) { toast(t('nav_need_gps'), 6500); return; } if (!me) { toast(t('nav_no_gps'), 5000); return; } }
+  nav = {opt: o, along: 0, spoken: {}, lastReroute: 0, rerouting: false, lastLeg: -1, wl: null, drawn: -1, sim: !!simulate, savedMe: me ? Object.assign({}, me) : null};
+  follow = true; document.body.classList.add('navmode'); closePoi(); $('#rsheet').classList.remove('on');
+  try { if (navigator.wakeLock) nav.wl = await navigator.wakeLock.request('screen'); } catch (e) {}
+  if (!nav) return;
+  if (simulate) startSim(o); else updateNav();
+  followCam(); updateSpeed();
 }
-function showMetroSheet(i, force) {
-  const M = metro; if (i == null || !M) return;
-  const key = M.st[i].name;
-  if (!force && metroSeen[key] && Date.now() - metroSeen[key] < 300000) return;
-  metroSeen[key] = Date.now();
-  const s = M.st[i]; let h = `<button class="x" id="mx">×</button><div class="big">🚇 Вы у метро «${esc(s.name)}»</div>`;
-  if (dest) {
-    const p = metroPath(M, {lat: s.lat, lon: s.lon, name: ''}, dest, 1500);
-    if (p) {
-      const from = {lat: s.lat, lon: s.lon};
-      const ds = describeMetro(M, from, dest, {path: p.path, total: p.total});
-      h += `<div class="sub">Маршрут до «${esc(dest.name)}»:</div>` + metroHtml(M, from, dest, ds, p.total - 4);
-      drawMetro(M, from, dest, ds);
-    } else h += '<div class="sub">До выбранной цели от этой станции маршрут не найден.</div>';
+function startSim(o) {
+  let dist = 0; const v = {foot: 1.4, bike: 4.5, car: 13, transit: 9}[o.mode] || 4;
+  sim = setInterval(() => {
+    dist = Math.min(o.total, dist + v * 5);
+    let i = 1; while (i < o.cum.length - 1 && o.cum[i] < dist) i++;
+    const a = o.coords[i - 1], b = o.coords[i], seg = (o.cum[i] - o.cum[i - 1]) || 1, u = Math.min(1, Math.max(0, (dist - o.cum[i - 1]) / seg));
+    handlePos(a[1] + (b[1] - a[1]) * u, a[0] + (b[0] - a[0]) * u, brg({lat: a[1], lon: a[0]}, {lat: b[1], lon: b[0]}), 5, v);
+  }, 1000);
+}
+function updateNav() {
+  if (!nav || !me) return;
+  const o = nav.opt, np = nearestOn(o.coords, o.cum, me.lat, me.lon), along = np.d < 80 ? Math.max(nav.along, np.along) : np.along; nav.along = along;
+  const left = Math.max(0, o.total - along);
+  if (o.kind === 'osrm' && np.d > OFFR[o.mode] && !nav.sim && !nav.rerouting && Date.now() - nav.lastReroute > 12000) reroute();
+  if (left < 25 || hav(me.lat, me.lon, dest.lat, dest.lon) < 25) { endNav(true); return; }
+  let arr, dist, txt, next = '';
+  if (o.kind === 'osrm') {
+    let k = o.man.findIndex(m => m.along > along + 6); if (k < 0) k = o.man.length - 1;
+    const m = o.man[k], nm = o.man[k + 1]; dist = Math.max(0, m.along - along); arr = m.ar; txt = m.txt; next = nm ? t('then', nm.txt) : '';
+    const [t1, t2] = THR[o.mode] || THR.foot, ka = k + 'a', kb = k + 'b';
+    if (dist <= t2 && !nav.spoken[kb]) { nav.spoken[kb] = nav.spoken[ka] = 1; speak(m.txt); }
+    else if (dist <= t1 && dist > t2 && !nav.spoken[ka]) { nav.spoken[ka] = 1; speak(t('v_in', Math.round(dist / 10) * 10, m.txt.charAt(0).toLowerCase() + m.txt.slice(1))); }
   } else {
-    h += '<div class="sub">Выберите цель в поиске, и я покажу маршрут от этой станции. Станции ваших линий:</div>';
-    s.lines.slice(0, 3).forEach(li => { const L = M.lines[li]; h += `<div style="margin-top:8px"><span class="badge" style="background:${L.color || 'var(--accent)'}">${esc(L.name.replace('Линия ', ''))}</span> <span class="sub">${esc(L.full)}</span></div><div style="font-size:13px">${L.stops.map(k => k === i ? `<b style="color:var(--accent)">${esc(M.st[k].name)}</b>` : esc(M.st[k].name)).join(' → ')}</div>`; });
+    let k = o.legs.findIndex(L => L.a1 > along + 12); if (k < 0) k = o.legs.length - 1;
+    const L = o.legs[k], NL = o.legs[k + 1]; dist = Math.max(0, L.a1 - along); arr = legIcon(L); txt = legTitle(L); next = NL ? t('then', legTitle(NL)) : '';
+    if (k !== nav.lastLeg) { nav.lastLeg = k; speak(txt); }
+    if (L.type !== 'walk' && dist < 400 && !nav.spoken['x' + k]) { nav.spoken['x' + k] = 1; speak(t('prep_exit', L.to || '')); }
   }
-  const m = $('#metro'); m.innerHTML = h; m.classList.add('on'); $('#mx').onclick = () => m.classList.remove('on');
+  const last = o.legs.length === 1 && arr === '🏁';
+  $('#nbArr').textContent = arr; $('#nbDist').textContent = (arr === '🏁' && dist < 30) ? t('finish') : fmtD(dist); $('#nbTxt').textContent = txt; $('#nbNext').textContent = next;
+  const minLeft = o.min * left / o.total; $('#nbEta').textContent = fmtT(minLeft) + ' · ' + fmtD(left);
+  $('#nbRem').textContent = t('eta_at', new Date(Date.now() + minLeft * 60000).toLocaleTimeString(S.lang === 'en' ? 'en-GB' : 'ru-RU', {hour: '2-digit', minute: '2-digit'}));
+  drawNavRoute(along); followCam();
 }
-$('#testMetro').onclick = async () => {
-  tab('nav'); toast('Загружаю метро…', 2500);
-  try { const M = await loadMetro(); const c = me || map.getCenter() && {lat: map.getCenter().lat, lon: map.getCenter().lng}; let b = 0, bd = 1e9; M.st.forEach((s, i) => { const d = hav(c.lat, c.lon, s.lat, s.lon); if (d < bd) { bd = d; b = i; } }); showMetroSheet(b, true); } catch (e) { toast('Не удалось загрузить метро'); }
-};
-$('#clearCache').onclick = () => { try { localStorage.removeItem('novaMetro2'); } catch (e) {} metro = null; toast('Кэш метро сброшен'); };
-
-/* ---------- наземный транспорт ---------- */
-async function routeBus(o) {
-  const R = 700, a = `${o.lat},${o.lon}`, b = `${dest.lat},${dest.lon}`;
-  const q = `[out:json][timeout:50];
-(node(around:${R},${a})["highway"="bus_stop"];node(around:${R},${a})["public_transport"="platform"];)->.sa;
-(node(around:${R},${b})["highway"="bus_stop"];node(around:${R},${b})["public_transport"="platform"];)->.sb;
-rel(bn.sa)["route"~"^(bus|tram|trolleybus)$"]->.ra;
-rel(bn.sb)["route"~"^(bus|tram|trolleybus)$"]->.rb;
-rel.ra.rb->.x;
-.x out body;
-node(r.x)->.n;
-.n out body;`;
-  const j = await overpass(q);
-  const nodes = new Map(); j.elements.filter(e => e.type === 'node').forEach(e => nodes.set(e.id, e));
-  const cands = [];
-  for (const r of j.elements.filter(e => e.type === 'relation')) {
-    const seq = (r.members || []).filter(m => m.type === 'node' && /^(stop|platform)/.test(m.role) && nodes.has(m.ref)).map(m => nodes.get(m.ref));
-    const stops = seq.filter((v, i) => i === 0 || v.id !== seq[i - 1].id);
-    let ia = -1, da = 1e9, ib = -1, db = 1e9;
-    stops.forEach((s, i) => { const d1 = hav(o.lat, o.lon, s.lat, s.lon), d2 = hav(dest.lat, dest.lon, s.lat, s.lon); if (d1 < da) { da = d1; ia = i; } if (d2 < db) { db = d2; ib = i; } });
-    if (ia < 0 || ib <= ia || da > R || db > R) continue;
-    const seg = stops.slice(ia, ib + 1);
-    let len = 0; for (let i = 1; i < seg.length; i++) len += hav(seg[i - 1].lat, seg[i - 1].lon, seg[i].lat, seg[i].lon);
-    const t = r.tags || {}, type = t.route;
-    const speed = type === 'tram' ? 280 : 240; // м/мин в среднем с остановками
-    const total = da / WALK + 5 + len / speed + db / WALK;
-    cands.push({ref: t.ref || t.name || '?', type, from: t.from, to: t.to, seg, da, db, n: seg.length - 1, total});
-  }
-  const best = new Map();
-  cands.sort((x, y) => x.total - y.total).forEach(c => { const k = c.type + c.ref; if (!best.has(k)) best.set(k, c); });
-  const list = [...best.values()].slice(0, 6);
-  if (!list.length) { sheet('<div class="big">Прямых маршрутов нет</div><div class="sub">В радиусе ~700 м от старта и цели не нашлось маршрута автобуса, трамвая или троллейбуса без пересадок. Попробуйте метро или выберите другую точку.</div>'); return; }
-  const icon = {bus: '🚌', tram: '🚋', trolleybus: '🚎'};
-  const draw = c => {
-    const co = c.seg.map(s => [s.lon, s.lat]);
-    setData('route', [line([[o.lon, o.lat], co[0]], {dash: true}), line(co), line([co[co.length - 1], [dest.lon, dest.lat]], {dash: true})]);
-    setData('pts', c.seg.map(s => ({type: 'Feature', properties: {}, geometry: {type: 'Point', coordinates: [s.lon, s.lat]}})));
-    fit([[o.lon, o.lat], [dest.lon, dest.lat], ...co]);
-  };
-  const render = (sel) => {
-    const s = $('#sheet'); s.classList.add('on');
-    s.innerHTML = '<button class="x" id="shx">×</button><div class="big">Наземный транспорт</div><div class="sub">Без пересадок, время ориентировочное (без реальных интервалов)</div>' +
-      list.map((c, i) => `<div class="step" data-i="${i}" style="cursor:pointer;${i === sel ? 'background:var(--chip);border-radius:10px;padding:8px' : ''}"><span class="dot"></span><div><span class="badge">${icon[c.type] || ''} ${esc(c.ref)}</span> <b>~${fmtT(c.total)}</b><div class="sub">Сесть: ${esc(c.seg[0].tags && c.seg[0].tags.name || 'остановка')} (${fmtD(c.da)} пешком)<br>Выйти: ${esc(c.seg[c.seg.length - 1].tags && c.seg[c.seg.length - 1].tags.name || 'остановка')}, ${c.n} ост., потом ${fmtD(c.db)}${c.to ? '<br>Направление: ' + esc(c.to) : ''}</div></div></div>`).join('');
-    $('#shx').onclick = () => s.classList.remove('on');
-    s.querySelectorAll('.step').forEach(el => el.onclick = () => { const i = +el.dataset.i; draw(list[i]); render(i); });
-  };
-  draw(list[0]); render(0);
+function drawNavRoute(along) {
+  if (nav.drawn >= 0 && Math.abs(along - nav.drawn) < 4) return; nav.drawn = along; const o = nav.opt, feats = [];
+  o.legs.forEach(L => {
+    const walk = L.type === 'walk', pr = {k: walk ? 'walk' : 'main', color: walk ? null : (L.color || null)};
+    if (L.a1 <= along) feats.push(feat(L.coords, {k: 'passed'}));
+    else if (L.a0 >= along) feats.push(feat(L.coords, pr));
+    else { const [a, b] = sliceAt(L.coords, L.cum, along - L.a0); feats.push(feat(a, {k: 'passed'})); feats.push(feat(b, pr)); }
+  });
+  setG('route', feats);
 }
+async function reroute() {
+  nav.rerouting = true; nav.lastReroute = Date.now(); toast(t('rerouting'), 2500); speak(t('rerouting'));
+  try { const a = await osrmOptions({lat: me.lat, lon: me.lon}, dest, nav.opt.mode); if (!nav) return; const n = a[0]; RT.opts = [n]; RT.sel = n.id; nav.opt = n; nav.along = 0; nav.drawn = -1; nav.spoken = {}; }
+  catch (e) { toast(t('err_reroute')); }
+  if (nav) nav.rerouting = false;
+}
+function endNav(arrived, silent) {
+  if (!nav) return; const n = nav; nav = null;
+  if (sim) { clearInterval(sim); sim = null; me = n.savedMe; if (!me && meMarker) { meMarker.remove(); meMarker = null; } else if (me && meMarker) { meMarker.setLngLat([me.lon, me.lat]); } }
+  try { if (n.wl) n.wl.release(); } catch (e) {}
+  try { speechSynthesis.cancel(); } catch (e) {}
+  document.body.classList.remove('navmode'); $('#speedo').classList.remove('on');
+  if (arrived && !silent) { speak(t('arrived')); toast('🏁 ' + t('arrived'), 5000); }
+  if (map) map.easeTo({pitch: S.d3 ? 60 : 0, bearing: S.d3 ? -17 : 0, padding: {top: 0, bottom: 0, left: 0, right: 0}, duration: 800});
+  if (arrived) { closeRoute(); } else if (!silent) { drawRoute(false); renderRoute(); }
+}
+$('#nbVoice').onclick = () => { S.voice = !S.voice; save(); $('#nbVoice').textContent = S.voice ? '🔊' : '🔇'; if (!S.voice) { try { speechSynthesis.cancel(); } catch (e) {} } };
+$('#nbEnd').onclick = () => endNav(false);
 
-/* ---------- поиск адресов ---------- */
-let qt;
-$('#q').addEventListener('input', () => { clearTimeout(qt); const v = $('#q').value.trim(); if (v.length < 3) { $('#qres').innerHTML = ''; return; } qt = setTimeout(() => doSearch(v), 600); });
-$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(qt); const v = $('#q').value.trim(); if (v) doSearch(v); } });
+/* ================= поиск ================= */
+let qMode = 'places';
+const NEAR = {cafe: '"amenity"="cafe"', restaurant: '"amenity"="restaurant"', pharmacy: '"amenity"="pharmacy"', supermarket: '"shop"~"^(supermarket|convenience)$"', atm: '"amenity"~"^(atm|bank)$"', fuel: '"amenity"="fuel"', park: '"leisure"="park"', museum: '"tourism"="museum"', toilets: '"amenity"="toilets"'};
+function openPicker(which) { pickFor = which; $('#q').value = ''; tab('search'); }
+function openSearchTab() {
+  $('#qtitle').textContent = pickFor === 'from' ? t('where_from') : pickFor === 'home' ? t('pick_home') : pickFor === 'work' ? t('pick_work') : t('where_to');
+  const seg = $('#qseg'); seg.style.display = pickFor === 'to' ? 'flex' : 'none'; if (pickFor !== 'to') qMode = 'places';
+  seg.innerHTML = `<button data-v="places" class="${qMode === 'places' ? 'on' : ''}">${t('sq_places')}</button><button data-v="transport" class="${qMode === 'transport' ? 'on' : ''}">${t('sq_transport')}</button>`;
+  $('#qopts').innerHTML = (pickFor === 'from' ? `<button class="btn ghost" id="oMe">📍 ${t('my_loc')}</button>` : '') + `<button class="btn ghost" id="oMap">🗺 ${t('on_map')}</button>`;
+  if (pickFor === 'from') $('#oMe').onclick = () => { clearOrigin(); tab('nav'); };
+  $('#oMap').onclick = () => startMapPick(pickFor);
+  $('#q').placeholder = qMode === 'places' ? t('ph_place') : t('ph_transport');
+  if (!$('#q').value.trim()) renderSearchHome(); else onQuery();
+  setTimeout(() => { if (!$('#q').value) $('#q').focus(); }, 200);
+}
+$('#qseg').onclick = e => { const b = e.target.closest('button'); if (!b) return; qMode = b.dataset.v; $('#q').value = ''; openSearchTab(); };
+function li(ic, title, sub, i, extra) { return `<div class="li" data-i="${i}" style="animation-delay:${Math.min(i, 8) * 30}ms"><div class="li-i">${ic}</div><div class="lt"><b>${esc(title)}</b><span class="sub">${esc(sub || '')}</span></div>${extra || ''}</div>`; }
+let hist = [];
+function renderSearchHome() {
+  const box = $('#qres'), ch = $('#qchips');
+  if (qMode === 'transport') { ch.innerHTML = ''; box.innerHTML = `<div class="empty">${t('transport_hint')}</div>`; return; }
+  ch.innerHTML = `<div class="sub" style="margin-top:12px">${t('nearby')}</div><div class="chips">` + Object.keys(NEAR).map(k => `<button data-n="${k}">${catInfo(k).ic} ${catInfo(k).label}</button>`).join('') + '</div>';
+  ch.onclick = e => { const b = e.target.closest('button'); if (b) nearby(b.dataset.n); };
+  hist = (S.hist || []).slice(0, 8);
+  box.innerHTML = hist.length ? `<div class="sub" style="margin-top:6px">${t('recent')}</div>` + hist.map((p, i) => li('🕘', p.name, '', i)).join('') : '';
+  box.onclick = e => { const x = e.target.closest('.li'); if (!x) return; const p = hist[+x.dataset.i]; if (p) applyPick(p.lat, p.lon, p.name); };
+}
+async function nearby(k) {
+  const box = $('#qres'); box.innerHTML = `<div class="note"><i class="spin"></i>${t('searching')}</div>`;
+  const c = me ? {lat: me.lat, lng: me.lon} : (map ? map.getCenter() : {lat: 59.9386, lng: 30.3141});
+  try {
+    const j = await overpass(`[out:json][timeout:25];nwr(around:1500,${c.lat},${c.lng})[${NEAR[k]}]["name"];out center 40;`);
+    const items = j.elements.map(e => ({name: e.tags.name, lat: e.lat || (e.center && e.center.lat), lon: e.lon || (e.center && e.center.lon)})).filter(e => e.lat).map(e => (e.d = hav(c.lat, c.lng, e.lat, e.lon), e)).sort((a, b) => a.d - b.d).slice(0, 25);
+    hist = items; const ic = catInfo(k).ic;
+    box.innerHTML = items.length ? items.map((p, i) => li(ic, p.name, fmtD(p.d), i)).join('') : `<div class="empty">${t('nothing')}</div>`;
+    box.onclick = e => { const x = e.target.closest('.li'); if (!x) return; const p = hist[+x.dataset.i]; if (p) applyPick(p.lat, p.lon, p.name); };
+  } catch (e) { box.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+const onQuery = debounce(() => { const v = $('#q').value.trim(); if (v.length < 2) { renderSearchHome(); return; } if (qMode === 'places') doSearch(v); else doTransportSearch(v); }, 500);
+$('#q').addEventListener('input', onQuery);
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { const v = $('#q').value.trim(); if (v) { if (qMode === 'places') doSearch(v); else doTransportSearch(v); } } });
 async function doSearch(v) {
-  const box = $('#qres'); box.innerHTML = '<div class="empty">Ищу…</div>';
+  const box = $('#qres'); $('#qchips').innerHTML = ''; box.innerHTML = `<div class="note"><i class="spin"></i>${t('searching')}</div>`;
   try {
-    const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&accept-language=ru&viewbox=27.8,61.4,35.9,58.4&bounded=1&q=' + encodeURIComponent(v));
-    const j = await r.json();
-    if (!j.length) { box.innerHTML = '<div class="empty">Ничего не найдено в СПб и Ленобласти</div>'; return; }
-    box.innerHTML = j.map((p, i) => `<div class="item" data-i="${i}"><b>${esc(p.name || p.display_name.split(',')[0])}</b><span class="sub">${esc(p.display_name.split(',').slice(1, 4).join(','))}</span></div>`).join('');
-    box.onclick = e => { const it = e.target.closest('.item'); if (!it) return; const p = j[+it.dataset.i]; setDest(+p.lat, +p.lon, p.name || p.display_name.split(',')[0], true); if (map) map.easeTo({center: [+p.lon, +p.lat], duration: 600}); };
-  } catch (e) { box.innerHTML = '<div class="empty">Ошибка поиска. Проверьте интернет.</div>'; }
+    const j = await fj(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&addressdetails=1&accept-language=${S.lang}&countrycodes=ru&viewbox=27.8,61.8,36.0,58.4&bounded=1&q=${encodeURIComponent(v)}`, {ms: 12000});
+    if (!j.length) { box.innerHTML = `<div class="empty">${t('nothing_reg')}</div>`; return; }
+    hist = j.map(p => ({name: p.name || p.display_name.split(',')[0], lat: +p.lat, lon: +p.lon}));
+    box.innerHTML = j.map((p, i) => { const c = catInfo(p.type, p.category); return li(c.ic, hist[i].name, p.display_name.split(',').slice(1, 4).join(',').trim(), i); }).join('');
+    box.onclick = e => { const x = e.target.closest('.li'); if (!x) return; const p = hist[+x.dataset.i]; applyPick(p.lat, p.lon, p.name); };
+  } catch (e) { box.innerHTML = `<div class="empty">${t('err_search')}</div>`; }
 }
-
-/* ---------- интересные места (ИИ) ---------- */
-const CATS = {
-  cafe: ['Кафе', '"amenity"="cafe"'], restaurant: ['Ресторан', '"amenity"="restaurant"'], fastfood: ['Фастфуд', '"amenity"="fast_food"'], bar: ['Бар / паб', '"amenity"~"^(bar|pub)$"'],
-  park: ['Парк / сквер', '"leisure"~"^(park|garden)$"'], museum: ['Музей', '"tourism"="museum"'], attraction: ['Достопримечательность', '"tourism"="attraction"'], viewpoint: ['Смотровая', '"tourism"="viewpoint"'],
-  cinema: ['Кино', '"amenity"="cinema"'], theatre: ['Театр', '"amenity"="theatre"'], pharmacy: ['Аптека', '"amenity"="pharmacy"'], supermarket: ['Магазин продуктов', '"shop"~"^(supermarket|convenience)$"'],
-  mall: ['Торговый центр', '"shop"="mall"'], gym: ['Спорт / фитнес', '"leisure"~"^(fitness_centre|sports_centre|swimming_pool)$"'], library: ['Библиотека', '"amenity"="library"'],
-  beach: ['Пляж', '"natural"="beach"'], hotel: ['Отель', '"tourism"~"^(hotel|hostel|guest_house)$"'], church: ['Храм / собор', '"amenity"="place_of_worship"'], playground: ['Детская площадка', '"leisure"="playground"'],
-  bakery: ['Пекарня', '"shop"="bakery"'], atm: ['Банкомат / банк', '"amenity"~"^(atm|bank)$"'], fuel: ['АЗС', '"amenity"="fuel"'], toilet: ['Туалет', '"amenity"="toilets"'], gallery: ['Галерея', '"tourism"="gallery"']
-};
-const KW = [
-  [/кафе|кофе|капучино|кофейн|посидеть|поработать/i, 'cafe'], [/ресторан|поужина|пообеда|обед|ужин|покуш|поесть|еда|еды/i, 'restaurant'], [/фастфуд|быстро перекус|бургер|шаурм/i, 'fastfood'],
-  [/бар|пиво|паб|выпить|коктейл/i, 'bar'], [/парк|сквер|погуля|прогул|природ|сад/i, 'park'], [/музе|выставк|искусств/i, 'museum'], [/достопримеч|интересн|красив|сходить|туристи|экскурс/i, 'attraction'],
-  [/вид|панорам|смотров|закат|крыш/i, 'viewpoint'], [/кино|фильм/i, 'cinema'], [/театр|спектакл|опер|балет/i, 'theatre'], [/аптек|лекарств/i, 'pharmacy'], [/магазин|продукт|супермаркет/i, 'supermarket'],
-  [/торгов|молл|шопинг/i, 'mall'], [/спорт|фитнес|бассейн|трениров|качалк/i, 'gym'], [/библиотек|почитать/i, 'library'], [/пляж|искупа|купаться/i, 'beach'], [/отел|гостиниц|хостел|переночева/i, 'hotel'],
-  [/церк|храм|собор|мечеть/i, 'church'], [/детск|ребён|ребен|дет[иь]/i, 'playground'], [/пекарн|булочн|выпечк/i, 'bakery'], [/банк|банкомат|снять налич/i, 'atm'], [/заправк|бензин|азс/i, 'fuel'], [/туалет/i, 'toilet'], [/галере/i, 'gallery']
-];
-function localParse(t) {
-  const set = []; KW.forEach(([re, id]) => { if (re.test(t) && !set.includes(id)) set.push(id); });
-  if (!set.length) set.push('attraction', 'park', 'cafe');
-  return {ids: set.slice(0, 4), wifi: /wi-?fi|вай-?фай|интернет/i.test(t), reason: 'Подобрано по ключевым словам (ИИ-ключ не указан).'};
-}
-async function aiParse(t) {
-  if (!S.key) return localParse(t);
+async function doTransportSearch(v) {
+  const box = $('#qres'); $('#qchips').innerHTML = ''; box.innerHTML = `<div class="note"><i class="spin"></i>${t('searching')}</div>`;
+  const rx = v.replace(/[\\"^$.*+?()[\]{}|]/g, '\\$&'), bb = LO_BBOX.join(','), R = '"route"~"^(bus|trolleybus|tram|share_taxi|train|light_rail|subway)$"';
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {'content-type': 'application/json', 'x-api-key': S.key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true'},
-      body: JSON.stringify({
-        model: 'claude-haiku-5-5', max_tokens: 300,
-        system: 'Ты подбираешь типы мест для карты. Допустимые id: ' + Object.keys(CATS).join(', ') + '. Верни ТОЛЬКО JSON вида {"ids":["id1","id2"],"wifi":false,"reason":"одно короткое предложение по-русски"}. От 1 до 4 id, только из списка.',
-        messages: [{role: 'user', content: t}]
-      })
-    });
-    if (!r.ok) throw new Error(r.status);
-    const j = await r.json(); const txt = j.content[0].text; const o = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
-    const ids = (o.ids || []).filter(i => CATS[i]).slice(0, 4);
-    if (!ids.length) throw new Error('empty');
-    return {ids, wifi: !!o.wifi, reason: String(o.reason || '').slice(0, 200)};
-  } catch (e) { const l = localParse(t); l.reason = 'ИИ недоступен (проверьте ключ), использован подбор по словам.'; return l; }
+    const j = await overpass(`[out:json][timeout:40];(rel[${R}]["ref"~"^${rx}$",i](${bb});${v.length >= 3 ? `rel[${R}]["name"~"${rx}",i](${bb});` : ''});out tags 80;`, 40000);
+    const seen = new Set(), arr = [];
+    (j.elements || []).forEach(e => { const g = e.tags || {}, k = g.route + '|' + g.ref + '|' + g.from + '|' + g.to + '|' + g.name; if (seen.has(k)) return; seen.add(k); arr.push({id: e.id, type: g.route, ref: g.ref || '', name: g.name || '', from: g.from || '', to: g.to || '', col: g.colour || ''}); });
+    const ord = {subway: 0, tram: 1, trolleybus: 2, bus: 3, share_taxi: 4, light_rail: 5, train: 5};
+    arr.sort((a, b) => (ord[a.type] - ord[b.type]) || a.ref.localeCompare(b.ref, undefined, {numeric: true}));
+    hist = arr;
+    if (!arr.length) { box.innerHTML = `<div class="empty">${t('nothing_tr')}</div>`; return; }
+    box.innerHTML = arr.map((r, i) => { const V = VEH[r.type] || VEH.bus; return `<div class="li" data-i="${i}" style="animation-delay:${Math.min(i, 8) * 30}ms"><span class="badge" style="background:${esc(r.col || V.col)};min-width:52px;justify-content:center">${V.ic} ${esc(r.ref || '')}</span><div class="lt"><b>${esc(r.from && r.to ? r.from + ' → ' + r.to : r.name)}</b><span class="sub">${t('v_' + r.type)}</span></div></div>`; }).join('');
+    box.onclick = e => { const x = e.target.closest('.li'); if (!x) return; showLine(hist[+x.dataset.i]); };
+  } catch (e) { box.innerHTML = `<div class="empty">${esc(e.message)} <a class="retry" id="trRetry">${t('retry')}</a></div>`; const a = $('#trRetry'); if (a) a.onclick = () => doTransportSearch(v); }
 }
-$('#aichips').innerHTML = ['Тихое кафе с wifi', 'Где погулять', 'Интересные музеи', 'Вид на закат', 'Поесть недорого', 'С детьми'].map(t => `<button>${t}</button>`).join('');
-$('#aichips').onclick = e => { const b = e.target.closest('button'); if (b) { $('#aiq').value = b.textContent; $('#aigo').click(); } };
-$('#aigo').onclick = async () => {
-  const t = $('#aiq').value.trim(); if (!t) return;
-  const st = $('#aistate'), res = $('#aires'); st.textContent = 'Думаю…'; res.innerHTML = '';
-  const p = await aiParse(t);
-  const c = map ? map.getCenter() : {lat: 59.9386, lng: 30.3141};
-  st.textContent = (p.reason ? p.reason + ' ' : '') + 'Ищу: ' + p.ids.map(i => CATS[i][0]).join(', ') + '…';
-  const around = `(around:2500,${c.lat},${c.lng})`;
-  const parts = p.ids.map(i => `nwr${around}[${CATS[i][1]}]["name"]${p.wifi ? '["internet_access"~"wlan|wifi|yes"]' : ''};`).join('');
+async function showLine(meta) {
+  tab('nav'); closeRoute(); toast(t('loading'), 2000);
   try {
-    const j = await overpass(`[out:json][timeout:30];(${parts});out center 60;`);
-    const items = j.elements.map(e => ({name: e.tags.name, lat: e.lat || (e.center && e.center.lat), lon: e.lon || (e.center && e.center.lon), tags: e.tags})).filter(e => e.lat && e.name)
-      .map(e => (e.d = hav(c.lat, c.lng, e.lat, e.lon), e)).sort((a, b) => a.d - b.d).slice(0, 25);
-    if (!items.length) { st.textContent = 'Рядом с центром карты ничего не нашлось. Подвиньте карту в другой район и повторите.'; return; }
-    st.textContent = (p.reason ? p.reason + ' ' : '') + 'Найдено рядом с центром карты: ' + items.length;
-    const kind = tg => { for (const i of p.ids) { const m = CATS[i][1].match(/"([^"]+)"~?=?"?\^?\(?([^")$]*)/); } return ''; };
-    res.innerHTML = items.map((e, i) => `<div class="item" data-i="${i}"><b>${esc(e.name)}</b><span class="sub">${fmtD(e.d)} от центра карты${e.tags.opening_hours ? ' · ' + esc(e.tags.opening_hours.slice(0, 40)) : ''}${e.tags['addr:street'] ? ' · ' + esc(e.tags['addr:street'] + (e.tags['addr:housenumber'] ? ' ' + e.tags['addr:housenumber'] : '')) : ''}</span></div>`).join('');
-    res.onclick = ev => { const it = ev.target.closest('.item'); if (!it) return; const e = items[+it.dataset.i]; setDest(e.lat, e.lon, e.name, true); };
-  } catch (e) { st.textContent = 'Ошибка поиска мест. Проверьте интернет.'; }
-};
-
-/* ---------- светофор (демо) ---------- */
-function lightTick() {
-  const T = 60, t = (Date.now() / 1000) % T; let c, left;
-  if (t < 28) { c = '#16a34a'; left = 28 - t; } else if (t < 31) { c = '#eab308'; left = 31 - t; } else { c = '#e11d48'; left = T - t; }
-  $('#lightDot').style.background = c; $('#lightSec').textContent = Math.ceil(left) + ' с';
+    const j = await overpass(`[out:json][timeout:30];rel(${meta.id})->.r;.r out geom;node(r.r)->.n;.n out body qt;`, 30000);
+    const rel = (j.elements || []).find(e => e.type === 'relation'), ps = parseRels(j)[0];
+    const ways = rel ? (rel.members || []).filter(m => m.type === 'way' && m.geometry && m.geometry.length > 1 && !/platform|stop/.test(m.role || '')).map(m => m.geometry.map(g => [g.lon, g.lat])) : [];
+    let line = stitch(ways); if (line.length < 2 && ps) line = ps.stops.map(s => [s.lo, s.la]);
+    if (line.length < 2) throw new Error(t('err_noroute'));
+    const V = VEH[meta.type] || VEH.bus, col = meta.col || V.col; LINE = {meta, col, stops: ps ? ps.stops : [], line};
+    clearRouteDraw(); setG('route', [feat(line, {k: 'main', color: col})]); setG('pts', LINE.stops.map((s, i, a) => ptf([s.lo, s.la], {color: col, r: (i === 0 || i === a.length - 1) ? 7 : 3.5}))); fitTo(line); renderLine();
+  } catch (e) { toast(e.message || t('err_search'), 5000); }
 }
-function applyLight() { $('#light').classList.toggle('on', !!S.light); }
-setInterval(() => { if (S.light) lightTick(); }, 500);
+function renderLine() {
+  const el = $('#rsheet'), L = LINE; if (!L) return; const V = VEH[L.meta.type] || VEH.bus;
+  el.innerHTML = `<div class="grab"></div><div class="rhead"><div class="row" style="min-width:0"><span class="badge" style="background:${esc(L.col)}">${V.ic} ${esc(L.meta.ref || '')}</span><div style="min-width:0"><div class="big" style="font-size:16px">${esc(L.meta.from && L.meta.to ? L.meta.from + ' → ' + L.meta.to : L.meta.name)}</div><div class="sub">${t('v_' + L.meta.type)} · ${t('n_stops', L.stops.length)}</div></div></div><button class="x" id="lx">×</button></div>
+  <div class="steps">${L.stops.map((s, i) => `<div class="step" data-i="${i}" style="cursor:pointer"><div class="si">${i + 1}</div><div>${esc(s.n || t('stop'))}</div></div>`).join('')}</div>`;
+  el.classList.add('on'); $('#lx').onclick = () => { LINE = null; clearRouteDraw(); el.classList.remove('on'); };
+  el.querySelectorAll('.step').forEach(x => x.onclick = () => { const s = L.stops[+x.dataset.i]; if (map) map.easeTo({center: [s.lo, s.la], zoom: 16.5, duration: 600}); });
+}
 
-/* ---------- настройки ---------- */
-$('#opt3d').checked = S.d3; $('#optLight').checked = S.light; $('#apikey').value = S.key;
-$('#opt3d').onchange = e => set3D(e.target.checked);
-$('#optLight').onchange = e => { S.light = e.target.checked; save(); applyLight(); };
-$('#apikey').onchange = e => { S.key = e.target.value.trim(); save(); toast(S.key ? 'Ключ сохранён' : 'Ключ удалён'); };
+/* ================= избранное ================= */
+function renderFavs() {
+  const v = $('#v-favs'), tile = (k, ic, lbl) => { const p = S[k]; return `<div class="tile surf" data-k="${k}"><span style="font-size:22px">${ic}</span><b>${lbl}</b><span class="sub">${p ? esc(p.name) : t('set_place')}</span></div>`; };
+  v.innerHTML = `<div class="vhead"><h2>${t('nav_favs')}</h2></div><div class="tiles">${tile('home', '🏠', t('home'))}${tile('work', '💼', t('work'))}</div>` +
+    (S.favs.length ? S.favs.map((f, i) => `<div class="li" data-i="${i}" style="animation-delay:${Math.min(i, 8) * 30}ms"><div class="li-i">${esc(f.ic || '📍')}</div><div class="lt"><b>${esc(f.name)}</b><span class="sub">${esc([f.cat, f.addr].filter(Boolean).join(' · '))}</span></div><button class="x" data-del="${i}">×</button></div>`).join('') : `<div class="empty">⭐<br>${t('favs_empty')}</div>`);
+  v.onclick = e => {
+    const del = e.target.closest('[data-del]'); if (del) { S.favs.splice(+del.dataset.del, 1); save(); renderFavs(); return; }
+    const ti = e.target.closest('.tile'); if (ti) { const k = ti.dataset.k, p = S[k]; if (p) { pickFor = 'to'; applyPick(p.lat, p.lon, p.name, false); } else openPicker(k); return; }
+    const l = e.target.closest('.li'); if (l) { const f = S.favs[+l.dataset.i]; if (f) { pickFor = 'to'; applyPick(f.lat, f.lon, f.name, false); } }
+  };
+  v.querySelectorAll('.tile').forEach(ti => { let tm; ti.addEventListener('pointerdown', () => { tm = setTimeout(() => { tm = 'L'; openPicker(ti.dataset.k); }, 600); }); ti.addEventListener('pointerup', () => { if (tm !== 'L') clearTimeout(tm); }); ti.addEventListener('pointerleave', () => { if (tm !== 'L') clearTimeout(tm); }); });
+}
 
-/* ---------- старт ---------- */
-applyTheme(); markModes(); applyLight(); $('#viewBtn').textContent = S.d3 ? '3D' : '2D';
-initMap(); startGeo();
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+/* ================= у входа в метро ================= */
+let metroSeen = {};
+function checkMetro() {
+  if (!me || nav) return;
+  if (!metroMem) { if (!checkMetro.s && navigator.onLine !== false) { checkMetro.s = 1; setTimeout(() => loadMetro().then(() => checkMetro()).catch(() => { checkMetro.s = 0; }), 4000); } return; }
+  const M = metroMem; let b = -1, bd = 1e9, ne = 1e9;
+  M.st.forEach((s, i) => { const d = hav(me.lat, me.lon, s.lat, s.lon); if (d < bd) { bd = d; b = i; } });
+  M.ent.forEach(e => { const d = hav(me.lat, me.lon, e[0], e[1]); if (d < ne) ne = d; });
+  if (ne < 60 || bd < 90) showMetroPrompt(b, false);
+}
+function showMetroPrompt(i, force) {
+  const M = metroMem; if (!M || i < 0 || (!force && (RT.on || LINE))) return; const s = M.st[i], key = s.name;
+  if (!force && metroSeen[key] && Date.now() - metroSeen[key] < 300000) return; metroSeen[key] = Date.now();
+  const el = $('#mprompt'); let h = `<div class="rhead"><div class="big">🚇 ${t('at_metro', esc(sname(s.name, s.en)))}</div><button class="x" id="mpx">×</button></div><div>${s.lines.map(li => `<span class="badge" style="background:${esc(M.lines[li].color)}">${esc(mref(M.lines[li]))}</span>`).join(' ')}</div>`;
+  if (dest) { const r = planMetro(M, {st: i}, {lat: dest.lat, lon: dest.lon}); if (r) { const legs = metroLegs(M, r, {st: i}, {lat: dest.lat, lon: dest.lon}); h += `<div class="sub" style="margin-top:8px">${t('route_to', esc(dest.name))} · ${fmtT(r.total)}</div><div class="steps">` + legs.map(L => `<div class="step"><div class="si">${legIcon(L)}</div><div>${esc(legTitle(L))}</div></div>`).join('') + '</div>'; } else h += `<div class="sub" style="margin-top:8px">${t('no_metro_route')}</div>`; }
+  else h += `<div class="sub" style="margin-top:8px">${t('metro_pick_dest')}</div>`;
+  h += `<div class="opt"><button class="btn ghost" id="mpScheme">${t('open_scheme')}</button>${dest ? `<button class="btn" id="mpGo">${t('show_route')}</button>` : ''}</div>`;
+  el.innerHTML = h; el.classList.add('on'); $('#mpx').onclick = () => el.classList.remove('on');
+  $('#mpScheme').onclick = () => { el.classList.remove('on'); MT.from = i; MT.to = null; tab('metro'); };
+  if (dest) $('#mpGo').onclick = () => { el.classList.remove('on'); S.mode = 'transit'; save(); renderModes(); buildRoute(); };
+}
+
+
+/* ================= вкладка «Метро» (схема) ================= */
+document.head.insertAdjacentHTML('beforeend', '<style>#schemeBox .lb{display:none;fill:var(--text);pointer-events:none;font-size:var(--fs,10px);paint-order:stroke;stroke:var(--chip);stroke-width:calc(var(--fs,10px)*.25)}#schemeBox.zoomed .lb,#schemeBox .lb.k{display:block}#schemeBox .stn{r:var(--sr,5px);fill:#fff;stroke:#222;stroke-width:var(--sw,2px)}</style>');
+const MT = {from: null, to: null};
+let SC = {s: 1, x: 0, y: 0}, scHL = null, scGeo = null;
+async function openMetroTab() {
+  $('#mtitle').textContent = t('nav_metro'); const box = $('#schemeBox');
+  if (!metroMem) { box.innerHTML = `<div class="empty">${t('loading_metro')}</div>`; try { await loadMetro(); } catch (e) { box.innerHTML = `<div class="empty">${esc(e.message)} <a class="retry" id="mRetry">${t('retry')}</a></div>`; $('#mRetry').onclick = openMetroTab; return; } }
+  renderMetroChips(); computeMetro();
+}
+function renderMetroChips() {
+  const M = metroMem, c = $('#mchips'); if (!M) return; const nm = i => sname(M.st[i].name, M.st[i].en);
+  c.innerHTML = `<span class="sub">${t('metro_tap')}</span>` + (MT.from != null ? `<button class="badge" data-c="from" style="background:#16a34a">🟢 ${esc(nm(MT.from))} ×</button>` : '') + (MT.to != null ? `<button class="badge" data-c="to" style="background:var(--red)">🏁 ${esc(nm(MT.to))} ×</button>` : (dest && MT.from != null ? `<span class="badge" style="background:var(--muted)">🏁 ${esc(dest.name)}</span>` : ''));
+  c.onclick = e => { const b = e.target.closest('[data-c]'); if (!b) return; MT[b.dataset.c] = null; renderMetroChips(); computeMetro(); };
+}
+function computeMetro() {
+  const M = metroMem, res = $('#mres'); scHL = null;
+  if (!M || MT.from == null || (MT.to == null && !dest)) { res.classList.remove('on'); renderScheme(); return; }
+  const A = {st: MT.from}, B = MT.to != null ? {st: MT.to} : {lat: dest.lat, lon: dest.lon}, r = planMetro(M, A, B);
+  if (!r) { res.innerHTML = t('no_metro_route'); res.classList.add('on'); renderScheme(); return; }
+  scHL = {nodes: new Set(r.path.map(p => p.i)), edges: new Set(r.path.slice(1).map((p, k) => Math.min(p.i, r.path[k].i) + '|' + Math.max(p.i, r.path[k].i)))};
+  const legs = metroLegs(M, r, A, B);
+  res.innerHTML = `<div class="rhead"><div class="big">${fmtT(r.total)}</div><button class="btn" id="mOpen" style="padding:8px 14px">${t('on_map')}</button></div><div class="steps">` + legs.map(L => `<div class="step"><div class="si">${legIcon(L)}</div><div>${esc(legTitle(L))}</div></div>`).join('') + '</div>';
+  res.classList.add('on'); renderScheme();
+  $('#mOpen').onclick = () => {
+    const s = M.st[MT.from], tg = MT.to != null ? M.st[MT.to] : null; S.mode = 'transit'; save(); renderModes();
+    setOrigin(s.lat, s.lon, t('st_prefix') + sname(s.name, s.en), false); if (tg) setDest(tg.lat, tg.lon, t('st_prefix') + sname(tg.name, tg.en), false);
+    buildRoute({only: 'metro', st: {a: MT.from, b: MT.to}});
+  };
+}
+function renderScheme() {
+  const M = metroMem, box = $('#schemeBox'); if (!M) return;
+  const st = M.st; let a = 1e9, b = -1e9, c = 1e9, d = -1e9; st.forEach(s => { a = Math.min(a, s.lon); b = Math.max(b, s.lon); c = Math.min(c, s.lat); d = Math.max(d, s.lat); });
+  const k = Math.cos((c + d) / 2 * Math.PI / 180), W = 1000, pad = 60, sc = (W - 2 * pad) / Math.max((b - a) * k, 1e-6), H = Math.round((d - c) * sc + 2 * pad);
+  const X = lon => (pad + (lon - a) * k * sc).toFixed(1), Y = lat => (pad + (d - lat) * sc).toFixed(1); scGeo = {W, H};
+  const dim = scHL ? .22 : 1; let ln = '', hl = '', dots = '', labs = '';
+  M.lines.forEach((L, li) => {
+    let dd = '', hd = '';
+    st.forEach((s, i) => M.adj[i].forEach(e => { if (e.k !== 'ride' || e.li !== li || i > e.to) return; const seg = `M${X(s.lon)} ${Y(s.lat)}L${X(st[e.to].lon)} ${Y(st[e.to].lat)}`; if (scHL && scHL.edges.has(i + '|' + e.to)) hd += seg; else dd += seg; }));
+    ln += `<path d="${dd}" stroke="${esc(L.color)}" stroke-width="6" stroke-linecap="round" fill="none" opacity="${dim}"/>`;
+    if (hd) hl += `<path d="${hd}" stroke="#fff" stroke-width="13" stroke-linecap="round" fill="none"/><path d="${hd}" stroke="${esc(L.color)}" stroke-width="9" stroke-linecap="round" fill="none"/>`;
+  });
+  st.forEach((s, i) => {
+    const on = scHL ? scHL.nodes.has(i) : true, key = (MT.from === i || MT.to === i || (scHL && on) || s.lines.length > 1);
+    dots += `<circle class="stn" cx="${X(s.lon)}" cy="${Y(s.lat)}" opacity="${on ? 1 : .35}"/><circle data-i="${i}" cx="${X(s.lon)}" cy="${Y(s.lat)}" r="16" fill="transparent"/>`;
+    labs += `<text class="lb ${key ? 'k' : ''}" x="${+X(s.lon) + 9}" y="${+Y(s.lat) + 4}">${esc(sname(s.name, s.en))}</text>`;
+  });
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${ln}${hl}${dots}${labs}</svg>`;
+  const lg = M.lines.map(L => `<span class="badge" style="background:${esc(L.color)}">${esc(mref(L))}</span>`).join(' ');
+  if (!$('#schemeLeg')) box.insertAdjacentHTML('beforebegin', '<div id="schemeLeg" style="margin:6px 0"></div>'); $('#schemeLeg').innerHTML = lg;
+  bindScheme(box);
+}
+function bindScheme(box) {
+  const svg = box.querySelector('svg'), P = new Map(); let moved = 0, g0 = null, tapEl = null;
+  const apply = () => {
+    svg.style.transform = `translate(${SC.x}px,${SC.y}px) scale(${SC.s})`; const px = Math.min(box.clientWidth / scGeo.W, box.clientHeight / scGeo.H) * SC.s || 1;
+    svg.style.setProperty('--fs', (11 / px) + 'px'); svg.style.setProperty('--sr', (5 / Math.sqrt(px / .4)) + 'px'); svg.style.setProperty('--sw', (2 / Math.sqrt(px / .4)) + 'px'); box.classList.toggle('zoomed', SC.s > 2.2);
+  };
+  const rel = e => { const r = box.getBoundingClientRect(); return {x: e.clientX - r.left, y: e.clientY - r.top}; };
+  const geo = () => { const v = [...P.values()]; if (v.length < 2) return null; return {d: Math.hypot(v[0].x - v[1].x, v[0].y - v[1].y) || 1, mx: (v[0].x + v[1].x) / 2, my: (v[0].y + v[1].y) / 2}; };
+  box.onpointerdown = e => { try { box.setPointerCapture(e.pointerId); } catch (er) {} P.set(e.pointerId, rel(e)); if (P.size === 1) { moved = 0; tapEl = document.elementFromPoint(e.clientX, e.clientY); } g0 = geo(); };
+  box.onpointermove = e => {
+    if (!P.has(e.pointerId)) return; const pv = P.get(e.pointerId), cur = rel(e); P.set(e.pointerId, cur);
+    if (P.size === 1) { SC.x += cur.x - pv.x; SC.y += cur.y - pv.y; moved += Math.abs(cur.x - pv.x) + Math.abs(cur.y - pv.y); }
+    else if (P.size === 2) { const g1 = geo(); if (g0) { const s2 = Math.max(.6, Math.min(12, SC.s * g1.d / g0.d)), q = s2 / SC.s; SC.x = g1.mx - (g0.mx - SC.x) * q; SC.y = g1.my - (g0.my - SC.y) * q; SC.s = s2; } g0 = g1; moved += 20; }
+    apply();
+  };
+  box.onpointerup = e => { const was = P.has(e.pointerId); P.delete(e.pointerId); g0 = geo(); if (was && P.size === 0 && moved < 8 && tapEl && tapEl.dataset && tapEl.dataset.i != null) pickStation(+tapEl.dataset.i); };
+  box.onpointercancel = e => { P.delete(e.pointerId); g0 = geo(); };
+  box.onwheel = e => { e.preventDefault(); const p = rel(e), s2 = Math.max(.6, Math.min(12, SC.s * (e.deltaY < 0 ? 1.2 : 1 / 1.2))), q = s2 / SC.s; SC.x = p.x - (p.x - SC.x) * q; SC.y = p.y - (p.y - SC.y) * q; SC.s = s2; apply(); };
+  apply();
+}
+function pickStation(i) {
+  const M = metroMem, s = M.st[i], sh = $('#msheet');
+  sh.innerHTML = `<div class="rhead"><div><div class="big">🚇 ${esc(sname(s.name, s.en))}</div><div class="sub">${s.lines.map(li => esc(mref(M.lines[li]))).join(', ')}</div></div><button class="x" id="msx">×</button></div><div class="opt"><button class="btn ghost" id="msFrom">🟢 ${t('from_here')}</button><button class="btn" id="msTo">🏁 ${t('go_here')}</button></div>`;
+  sh.classList.add('on'); $('#msx').onclick = () => sh.classList.remove('on');
+  $('#msFrom').onclick = () => { MT.from = i; sh.classList.remove('on'); renderMetroChips(); computeMetro(); };
+  $('#msTo').onclick = () => { MT.to = i; if (MT.from === i) MT.from = null; sh.classList.remove('on'); renderMetroChips(); computeMetro(); };
+}
+
+/* ================= настройки ================= */
+const REGIONS = [['spb', 'reg_spb', [29.4, 59.62, 30.85, 60.12], 14], ['near', 'reg_near', [29.2, 59.5, 31.0, 60.3], 13], ['lo11', 'reg_lo11', [27.8, 58.4, 35.9, 61.4], 11], ['lo12', 'reg_lo12', [27.8, 58.4, 35.9, 61.4], 12], ['view', 'reg_view', null, 15]];
+const ACCENTS = ['#22c55e', '#8b5cf6', '#3b82f6', '#f97316', '#ec4899', '#ef4444', '#14b8a6', '#eab308'];
+const seg = (k, opts, cur) => `<div class="seg">${opts.map(([v, l]) => `<button data-k="${k}" data-v="${v}" class="${cur === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+const tog = (id, k, label, sub) => `<div class="set tog"><div><label>${label}</label>${sub ? `<div class="sub">${sub}</div>` : ''}</div><label class="tg"><input type="checkbox" id="${id}" data-tg="${k}" ${S[k] ? 'checked' : ''}><i></i></label></div>`;
+function tileRange(b, z) { const n = 2 ** z, X = lon => Math.floor((lon + 180) / 360 * n), Y = lat => { const r = lat * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n); }; return {x0: Math.max(0, X(b[0])), x1: Math.min(n - 1, X(b[2])), y0: Math.max(0, Y(b[3])), y1: Math.min(n - 1, Y(b[1]))}; }
+function countTiles(b, zmax) { let c = 0; for (let z = 0; z <= Math.min(zmax, 14); z++) { const r = tileRange(b, z); c += (r.x1 - r.x0 + 1) * (r.y1 - r.y0 + 1); } return c; }
+function regBox(r) { if (r[2]) return r[2]; if (!map) return [30.2, 59.9, 30.4, 60]; const b = map.getBounds(); return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]; }
+async function renderSettings() {
+  const v = $('#v-settings'), off = (await kv.get('offline')) || {};
+  v.innerHTML = `<div class="vhead"><h2>${t('nav_settings')}</h2></div>
+  <div class="grp surf">
+    <div class="set"><label>${t('language')}</label>${seg('lang', [['ru', 'Русский'], ['en', 'English']], S.lang)}</div>
+    <div class="set"><label>${t('theme')}</label>${seg('theme', [['auto', t('th_auto')], ['light', t('th_light')], ['dark', t('th_dark')]], S.theme)}</div>
+    <div class="set"><label>${t('design')}</label>${seg('style', [['standard', t('st_std')], ['glass', t('st_glass')]], S.style)}</div>
+    <div class="set"><label>${t('accent')}</label><div class="sw">${ACCENTS.map(c => `<button data-c="${c}" class="${S.accent === c ? 'on' : ''}" style="background:${c}"></button>`).join('')}</div></div>
+  </div>
+  <div class="grp surf">
+    ${tog('set-d3', 'd3', t('set_3d'))}${tog('set-sat', 'sat', t('set_sat'))}${tog('set-speedo', 'speedo', t('set_speedo'))}${tog('set-voice', 'voice', t('set_voice'))}
+    <div class="set"><label>${t('set_arrow')}</label><div class="arrows">${Object.keys(ARROWS).map(k => `<button data-a="${k}" class="${S.arrow === k ? 'on' : ''}">${arrowSvg(k, S.accent, 40)}</button>`).join('')}</div></div>
+  </div>
+  <div class="grp surf"><div class="set"><label>${t('offline')}</label><div class="sub">${t('offline_hint')}</div>
+    ${REGIONS.map(r => { const n = countTiles(regBox(r), r[3]), mb = Math.max(1, Math.round(n * .035)), done = off[r[0]]; return `<div class="li" style="animation:none"><div class="lt"><b>${t(r[1])}</b><span class="sub">≈ ${n} ${t('tiles')}, ~${mb} ${t('mb')}${done ? ' · ✓ ' + new Date(done.ts).toLocaleDateString(S.lang === 'en' ? 'en-GB' : 'ru-RU') : ''}</span></div><button class="btn ghost" data-dl="${r[0]}" style="padding:8px 12px">${done ? t('update') : t('download')}</button></div>`; }).join('')}
+    <div class="pbar"><i id="dlBar"></i></div><div class="sub" id="dlState"></div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost" id="dlCancel" style="display:none">${t('cancel')}</button><button class="btn ghost" id="dlClear">${t('clear_maps')}</button></div>
+  </div></div>
+  <div class="grp surf"><div class="set"><label>${t('data')}</label><div class="row"><button class="btn ghost" id="clrTr" style="flex:1">${t('clear_transit')}</button></div><div class="sub" id="stor" style="margin-top:8px"></div></div></div>
+  <div class="sub" style="padding:4px 6px 12px">Nova Navigator · © OpenStreetMap, OpenFreeMap, Esri · OSRM</div>`;
+  if (navigator.storage && navigator.storage.estimate) navigator.storage.estimate().then(e => { const el = $('#stor'); if (el) el.textContent = t('storage', Math.round((e.usage || 0) / 1048576)); });
+  if (dl) { updDl(); }
+}
+$('#v-settings').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.k) { S[b.dataset.k] = b.dataset.v; save(); if (b.dataset.k === 'lang') applyLang(); else { applyTheme(); renderSettings(); } }
+  else if (b.dataset.c) { S.accent = b.dataset.c; save(); applyTheme(); renderSettings(); }
+  else if (b.dataset.a) { S.arrow = b.dataset.a; save(); placeMe(); renderSettings(); }
+  else if (b.dataset.dl) downloadRegion(b.dataset.dl);
+  else if (b.id === 'dlClear') clearOffline();
+  else if (b.id === 'dlCancel') { if (dl) dl.cancel = true; }
+  else if (b.id === 'clrTr') clearTransit();
+});
+$('#v-settings').addEventListener('change', e => {
+  const k = e.target.dataset.tg; if (!k) return; const on = e.target.checked;
+  if (k === 'd3') set3D(on); else if (k === 'sat') setSat(on); else { S[k] = on; save(); if (k === 'speedo') updateSpeed(); if (k === 'voice') $('#nbVoice').textContent = on ? '🔊' : '🔇'; }
+});
+async function clearTransit() { const ks = await kv.keys(); for (const k of ks) if (/^(nr3\||geom3\||metro3)/.test(String(k))) await kv.del(k); metroMem = null; toast(t('cleared')); }
+
+/* ================= офлайн-карты ================= */
+let dl = null;
+function updDl() { if (!dl) return; const bar = $('#dlBar'), s = $('#dlState'), c = $('#dlCancel'); if (!bar) return; bar.style.width = (dl.total ? Math.round(dl.done / dl.total * 100) : 0) + '%'; s.textContent = dl.msg || (t('downloading') + ' ' + dl.done + ' / ' + dl.total); c.style.display = dl.running ? '' : 'none'; }
+function fontsOf(base) { const set = new Set(), walk = v => { if (typeof v === 'string') { if (/\s/.test(v) && /[A-Za-z]/.test(v)) set.add(v); } else if (Array.isArray(v)) v.forEach(walk); }; base.layers.forEach(l => l.layout && l.layout['text-font'] && walk(l.layout['text-font'])); return [...set]; }
+async function downloadRegion(id) {
+  if (dl && dl.running) { toast(t('dl_busy')); return; }
+  if (!('caches' in window)) { toast(t('dl_na')); return; }
+  const reg = REGIONS.find(r => r[0] === id), bbox = regBox(reg), zmax = reg[3]; dl = {running: true, cancel: false, done: 0, total: 0, msg: t('preparing')}; updDl();
+  try {
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+    const base = await loadBase(), cache = await caches.open('nova-maps'), urls = [], specs = [];
+    const put = async u => { try { const r = await fetch(u); if (r.ok) await cache.put(u, r); } catch (e) {} };
+    await put(STYLE_URL);
+    for (const src of Object.values(base.sources)) {
+      if (src.type === 'raster' && !src.url && !src.tiles) continue;
+      if (src.url) { const r = await fetch(src.url); await cache.put(src.url, r.clone()); const tj = await r.json(); if (tj.tiles && tj.tiles[0]) specs.push({tiles: tj.tiles[0], min: tj.minzoom || 0, max: tj.maxzoom == null ? 14 : tj.maxzoom}); }
+      else if (src.tiles && src.tiles[0]) specs.push({tiles: src.tiles[0], min: src.minzoom || 0, max: src.maxzoom == null ? 14 : src.maxzoom});
+    }
+    if (base.sprite) ['.json', '.png', '@2x.json', '@2x.png'].forEach(x => urls.push(base.sprite + x));
+    if (base.glyphs) fontsOf(base).forEach(f => ['0-255', '256-511', '1024-1279', '8192-8447'].forEach(r => urls.push(base.glyphs.replace('{fontstack}', f).replace('{range}', r))));
+    for (const s of specs) for (let z = s.min; z <= Math.min(zmax, s.max); z++) { const r = tileRange(bbox, z); for (let x = r.x0; x <= r.x1; x++) for (let y = r.y0; y <= r.y1; y++) urls.push(s.tiles.replace('{z}', z).replace('{x}', x).replace('{y}', y)); }
+    dl.total = urls.length; dl.msg = ''; let idx = 0, fails = 0;
+    const worker = async () => { while (!dl.cancel) { const i = idx++; if (i >= urls.length) return; const u = urls[i]; try { if (!(await cache.match(u))) { const r = await fetch(u); if (r.ok) await cache.put(u, r); else fails++; } } catch (e) { fails++; } dl.done++; if (dl.done % 10 === 0) updDl(); } };
+    await Promise.all(Array.from({length: 8}, worker));
+    if (dl.cancel) { dl.msg = t('dl_cancelled'); }
+    else { const off = (await kv.get('offline')) || {}; off[id] = {ts: Date.now(), n: urls.length}; await kv.set('offline', off); dl.msg = t('dl_done', urls.length - fails) + (fails ? ' · ' + t('dl_fails', fails) : ''); }
+  } catch (e) { dl.msg = t('dl_err') + ': ' + (e.message || ''); }
+  dl.running = false; updDl(); setTimeout(() => { if ($('#v-settings').classList.contains('on')) renderSettings(); }, 1500);
+}
+async function clearOffline() { try { await caches.delete('nova-maps'); await kv.del('offline'); } catch (e) {} toast(t('cleared')); renderSettings(); }
+
+/* ================= язык и запуск ================= */
+function applyLang() {
+  document.documentElement.lang = S.lang;
+  $$('#nav button').forEach((b, i) => { b.querySelector('span').textContent = t(['nav_map', 'nav_search', 'nav_metro', 'nav_favs', 'nav_settings'][i]); });
+  $('#pickCancel').textContent = t('cancel'); $('#pickOk').textContent = t('done'); $('#nbEnd').textContent = t('exit'); $('#nbVoice').textContent = S.voice ? '🔊' : '🔇';
+  renderModes(); updateToPill(); updateFromPill(); renderRoute();
+  const on = $('.view.on'); if (on) { const n = on.id.slice(2); if (n === 'search') openSearchTab(); else if (n === 'favs') renderFavs(); else if (n === 'settings') renderSettings(); else if (n === 'metro') openMetroTab(); }
+}
+applyTheme(); applyLang(); $('#viewBtn').textContent = S.d3 ? '3D' : '2D';
+if (S.sat) { $('#satBtn').style.color = '#fff'; $('#satBtn').style.background = 'var(--accent)'; }
+tab('nav'); initMap(); startGeo();
+addEventListener('offline', () => toast(t('offline_now'), 4000));
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').then(r => r.update && r.update()).catch(() => {});
+
 </script>
 </body>
 </html>
