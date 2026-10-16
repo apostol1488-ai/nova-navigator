@@ -371,20 +371,34 @@ async function fj(url, o = {}) {
   try { const r = await fetch(url, Object.assign({}, o.init || {}, {signal: c.signal})); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); }
   finally { clearTimeout(tm); }
 }
-const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+const OVERPASS = ['https://overpass.private.coffee/api/interpreter', 'https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.openstreetmap.fr/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+let OVB = null;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+/* «хеджированный» запрос: стартуем с лучшего зеркала, через 2.5 с (или сразу при ошибке) подключаем следующее; побеждает первое ответившее */
+function overpassOnce(q, ms) {
+  const order = OVERPASS.slice(); if (OVB && order.includes(OVB)) { order.splice(order.indexOf(OVB), 1); order.unshift(OVB); }
+  return new Promise((resolve, reject) => {
+    const ctls = []; let started = 0, failed = 0, done = false, timer = null;
+    const finish = (fn, v) => { if (done) return; done = true; clearTimeout(timer); ctls.forEach(c => { try { c.abort(); } catch (e) {} }); fn(v); };
+    const next = () => {
+      if (done || started >= order.length) return; const u = order[started++], c = new AbortController(); ctls.push(c); const tm = setTimeout(() => c.abort(), ms);
+      fetch(u, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'data=' + encodeURIComponent(q), signal: c.signal})
+        .then(async r => { if (!r.ok) throw new Error('HTTP ' + r.status); const j = await r.json(); if (j.remark && /error|timed out|out of memory/i.test(j.remark) && !(j.elements && j.elements.length)) throw new Error('busy'); return j; })
+        .then(j => { OVB = u; finish(resolve, j); })
+        .catch(() => { if (done) return; failed++; if (failed >= order.length) finish(reject, new Error('all')); else next(); })
+        .finally(() => clearTimeout(tm));
+      clearTimeout(timer); timer = setTimeout(next, 2500);
+    };
+    next();
+  });
+}
 async function overpass(q, ms = 25000) {
-  const once = async () => {
-    const ctls = OVERPASS.map(() => new AbortController());
-    const one = (u, i) => { const tm = setTimeout(() => ctls[i].abort(), ms); return fetch(u, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'data=' + encodeURIComponent(q), signal: ctls[i].signal}).then(async r => { if (!r.ok) throw new Error('HTTP ' + r.status); const j = await r.json(); if (j.remark && /error|timed out|out of memory/i.test(j.remark) && !(j.elements && j.elements.length)) throw new Error('busy'); return j; }).finally(() => clearTimeout(tm)); };
-    const j = await Promise.any(OVERPASS.map(one)); ctls.forEach(c => { try { c.abort(); } catch (e) {} }); return j;
-  };
-  for (let k = 0; k < 2; k++) { try { return await once(); } catch (e) { if (k === 0) await sleep(1500); } }
+  for (let k = 0; k < 2; k++) { try { return await overpassOnce(q, Math.max(ms, 20000)); } catch (e) { if (k === 0) await sleep(1200); } }
   throw new Error(t('err_server'));
 }
 /* ограничение числа одновременных запросов к Overpass */
 const _q = {n: 0, w: []};
-async function lim(fn) { while (_q.n >= 3) await new Promise(r => _q.w.push(r)); _q.n++; try { return await fn(); } finally { _q.n--; const r = _q.w.shift(); if (r) r(); } }
+async function lim(fn) { while (_q.n >= 2) await new Promise(r => _q.w.push(r)); _q.n++; try { return await fn(); } finally { _q.n--; const r = _q.w.shift(); if (r) r(); } }
 /* названия улиц: «Областная улица» → «Областная ул.» */
 const ABBR = [['улица', 'ул.'], ['проспект', 'пр.'], ['переулок', 'пер.'], ['набережная', 'наб.'], ['бульвар', 'бул.'], ['площадь', 'пл.'], ['проезд', 'пр-д'], ['шоссе', 'ш.'], ['аллея', 'ал.']].map(([a, b]) => [new RegExp('(?<![А-Яа-яЁё])' + a + '(?![А-Яа-яЁё])', 'gi'), b]);
 const abbrStreet = s => { s = String(s || ''); if (S.lang === 'ru') ABBR.forEach(([r, v]) => { s = s.replace(r, v); }); return s.trim(); };
@@ -877,35 +891,22 @@ function parseRels(j) {
   }
   return out;
 }
+const RTYPE = {s: '[route~"^(bus|trolleybus|tram|share_taxi)$"]', t: '[route~"^(train|light_rail)$"]'};
+const stopsAround = (p, R, kind) => { const a = `${p.lat.toFixed(5)},${p.lon.toFixed(5)}`; return kind === 't'
+  ? `node(around:${R},${a})[railway=station];node(around:${R},${a})[railway=halt];node(around:${R},${a})[railway=stop];node(around:${R},${a})[public_transport=stop_position][train=yes];node(around:${R},${a})[public_transport=platform][train=yes];`
+  : `node(around:${R},${a})[highway=bus_stop];node(around:${R},${a})[railway=tram_stop];node(around:${R},${a})[public_transport=platform];`; };
 const _inflight = new Map();
-function relIds(p, kind) {
-  const key = `ni3|${kind}|${p.lat.toFixed(3)}|${p.lon.toFixed(3)}`;
+/* один запрос: маршруты, которые проходят рядом и с точками A, и с точками B (пересечение множеств на сервере), сразу с остановками */
+function fetchRels(A, B, kind, R) {
+  const rd = p => p.lat.toFixed(3) + ',' + p.lon.toFixed(3), key = `rf4|${kind}|${R}|${A.map(rd).join(';')}|${B.map(rd).join(';')}`;
   if (_inflight.has(key)) return _inflight.get(key);
   const pr = (async () => {
-    const c = await kv.get(key); if (c && Date.now() - c.ts < 3 * 864e5) return c.ids;
-    const R = kind === 't' ? 2500 : 450, a = `${p.lat.toFixed(5)},${p.lon.toFixed(5)}`;
-    const q = kind === 't'
-      ? `[out:json][timeout:20];(node(around:${R},${a})[railway~"^(station|halt|stop)$"];node(around:${R},${a})[public_transport=stop_position][train=yes];)->.s;rel(bn.s)[route~"^(train|light_rail)$"];out tags;`
-      : `[out:json][timeout:20];(node(around:${R},${a})[highway=bus_stop];node(around:${R},${a})[railway=tram_stop];node(around:${R},${a})[public_transport~"^(platform|stop_position)$"];)->.s;rel(bn.s)[route~"^(bus|trolleybus|tram|share_taxi)$"];out tags;`;
-    const j = await lim(() => overpass(q, 20000));
-    const ids = (j.elements || []).filter(e => e.type === 'relation').map(e => ({id: e.id, type: (e.tags || {}).route, ref: (e.tags || {}).ref || ''}));
-    if (ids.length) kv.set(key, {ts: Date.now(), ids}); return ids;
+    const c = await kv.get(key); if (c && Date.now() - c.ts < 2 * 864e5) return c.rels;
+    const q = `[out:json][timeout:30];(${A.map(p => stopsAround(p, R, kind)).join('')})->.sa;(${B.map(p => stopsAround(p, R, kind)).join('')})->.sb;rel(bn.sa)${RTYPE[kind]}->.ra;rel(bn.sb)${RTYPE[kind]}->.rb;rel.ra.rb->.c;.c out body;node(r.c);out body qt;`;
+    const rels = parseRels(await lim(() => overpass(q, 30000)));
+    kv.set(key, {ts: Date.now(), rels}); return rels;
   })();
   _inflight.set(key, pr); pr.then(() => _inflight.delete(key), () => _inflight.delete(key)); return pr;
-}
-async function relDetails(ids, kind) {
-  const out = [], need = [];
-  for (const id of ids) { const c = await kv.get('rd3|' + id); if (c && Date.now() - c.ts < 14 * 864e5) out.push(c.r); else need.push(id); }
-  const size = kind === 't' ? 8 : 14, chunks = []; for (let i = 0; i < need.length; i += size) chunks.push(need.slice(i, i + size));
-  let ok = 0, err = null;
-  await Promise.all(chunks.map(async ch => {
-    try {
-      const j = await lim(() => overpass(`[out:json][timeout:25];rel(id:${ch.join(',')});out body;node(r);out body qt;`, 26000)); ok++;
-      parseRels(j).forEach(r => { out.push(r); kv.set('rd3|' + r.id, {ts: Date.now(), r}); });
-    } catch (e) { err = e; }
-  }));
-  if (!ok && chunks.length && err) throw err;
-  return out;
 }
 function isCommuter(r) {
   if (/long_distance|high_speed|night|international/.test(r.svc)) return false;
@@ -938,30 +939,22 @@ function rideOption(m, o, d) {
   if (m.db > 30) legs.push(walkLeg({lat: sb.la, lon: sb.lo}, d, ''));
   return finish({id: 'r' + r.id + '_' + m.ia + '_' + m.ib, kind: 'transit', mode: 'transit', legs});
 }
-async function ridesBetween(o, d, kind, Rs) {
-  const [A, B] = await Promise.all([relIds(o, kind), relIds(d, kind)]);
-  const mb = new Set(B.map(r => r.id)); let cand = A.filter(r => mb.has(r.id));
-  if (!cand.length) return [];
-  cand = cand.slice(0, kind === 't' ? 16 : 28);
-  const Rl = await relDetails(cand.map(r => r.id), kind);
-  let ms = matchRels(Rl, Rl, o, d, Rs || (kind === 't' ? 2500 : 500)); if (kind === 't') ms = ms.filter(m => isCommuter(m.r));
+function bestRides(Rl, o, d, kind, Rs) {
+  let ms = matchRels(Rl, Rl, o, d, Rs); if (kind === 't') ms = ms.filter(m => isCommuter(m.r));
   const best = new Map();
   ms.forEach(m => { const op = rideOption(m, o, d), k = m.r.type + '|' + (m.r.ref || m.r.name); if (!best.has(k) || best.get(k).min > op.min) best.set(k, op); });
   return [...best.values()].sort((a, b) => a.min - b.min);
 }
-async function transitRides(o, d, kind) { return (await ridesBetween(o, d, kind)).slice(0, 8); }
+async function transitRides(o, d, kind) { const R = kind === 't' ? 2500 : 550; return bestRides(await fetchRels([o], [d], kind, R), o, d, kind, R).slice(0, 8); }
 /* комбинированные маршруты: наземный транспорт до метро → метро → наземный/пешком */
 async function comboOptions(o, d) {
-  const M = await loadMetro(), sp = i => ({lat: M.st[i].lat, lon: M.st[i].lon});
-  const cands = p => M.st.map((s, i) => ({i, d: hav(p.lat, p.lon, s.lat, s.lon)})).filter(x => x.d > 450 && x.d < 7000).sort((a, b) => a.d - b.d).slice(0, 3);
-  const CE = cands(o), CX = cands(d), direct = hav(o.lat, o.lon, d.lat, d.lon); if (direct < 1800) return [];
-  const acc = new Map(), egr = new Map();
-  const near = (p, n) => M.st.map((s, i) => ({i, d: hav(p.lat, p.lon, s.lat, s.lon)})).filter(x => x.d <= 1500).sort((a, b) => a.d - b.d).slice(0, n);
-  const walkE = near(o, 2), walkX = near(d, 2);
-  const jobs = [];
-  CE.forEach(c => jobs.push(ridesBetween(o, sp(c.i), 's', 450).then(r => { if (r[0]) acc.set(c.i, r[0]); }).catch(() => {})));
-  CX.forEach(c => jobs.push(ridesBetween(sp(c.i), d, 's', 450).then(r => { if (r[0]) egr.set(c.i, r[0]); }).catch(() => {})));
-  await Promise.all(jobs);
+  const M = await loadMetro(), sp = i => ({lat: M.st[i].lat, lon: M.st[i].lon}), direct = hav(o.lat, o.lon, d.lat, d.lon); if (direct < 1800) return [];
+  const cands = p => M.st.map((s, i) => ({i, d: hav(p.lat, p.lon, s.lat, s.lon)})).filter(x => x.d > 450 && x.d < 7000).sort((a, b) => a.d - b.d).slice(0, 4);
+  const near = (p, n) => M.st.map((s, i) => ({i, d: hav(p.lat, p.lon, s.lat, s.lon)})).filter(x => x.d <= 1500).sort((a, b) => a.d - b.d).slice(0, 2);
+  const CE = cands(o), CX = cands(d), walkE = near(o, 2), walkX = near(d, 2), acc = new Map(), egr = new Map();
+  const [RA, RE] = await Promise.all([CE.length ? fetchRels([o], CE.map(c => sp(c.i)), 's', 450).catch(() => []) : [], CX.length ? fetchRels(CX.map(c => sp(c.i)), [d], 's', 450).catch(() => []) : []]);
+  CE.forEach(c => { const r = bestRides(RA, o, sp(c.i), 's', 450)[0]; if (r) acc.set(c.i, r); });
+  CX.forEach(c => { const r = bestRides(RE, sp(c.i), d, 's', 450)[0]; if (r) egr.set(c.i, r); });
   const Es = new Map(), Xs = new Map();
   acc.forEach((op, i) => Es.set(i, {op})); walkE.forEach(w => { if (!Es.has(w.i)) Es.set(w.i, {walk: w.d}); else Es.get(w.i).walk = w.d; });
   egr.forEach((op, i) => Xs.set(i, {op})); walkX.forEach(w => { if (!Xs.has(w.i)) Xs.set(w.i, {walk: w.d}); else Xs.get(w.i).walk = w.d; });
@@ -977,7 +970,7 @@ async function comboOptions(o, d) {
       legs.push(...metroLegs(M, r, A, B));
       if (xm === 'ride') xa.op.legs.forEach(L => legs.push(Object.assign({}, L))); else legs.push(walkLeg(sp(xi), d, ''));
       const op = finish({id: `combo_${ei}_${xi}_${am[0]}${xm[0]}`, kind: 'transit', mode: 'transit', combo: true, legs});
-      const key = legs.filter(L => L.type !== 'walk').map(L => L.type + (L.ref || '')).join('>'); op.key = key; res.push(op);
+      op.key = legs.filter(L => L.type !== 'walk').map(L => L.type + (L.ref || '')).join('>'); res.push(op);
     }
   }));
   res.sort((a, b) => (a.score || a.min) - (b.score || b.min));
@@ -1405,19 +1398,19 @@ function parseTr(v) {
   const types = new Set(), rest = []; v.split(' ').forEach(w => { const m = TYPEW.find(([r]) => r.test(w)); if (m) types.add(m[1]); else rest.push(w); });
   return {types: [...types], q: rest.join(' ').trim()};
 }
-const HG = {'к': 'kк', 'а': 'aа', 'е': 'eе', 'м': 'mм', 'н': 'hн', 'о': 'oо', 'р': 'pр', 'с': 'cс', 'т': 'tт', 'х': 'xх', 'в': 'bв', 'у': 'yу', 'k': 'kк', 'a': 'aа', 'e': 'eе', 'm': 'mм', 'h': 'hн', 'o': 'oо', 'p': 'pр', 'c': 'cс', 't': 'tт', 'x': 'xх', 'b': 'bв', 'y': 'yу'};
-function refRx(q) {
-  const ch = q.replace(/[\s\-–—]+/g, '').toLowerCase().split(''); let out = '';
-  ch.forEach((c, i) => { const isD = /\d/.test(c); if (i && (/\d/.test(ch[i - 1]) !== isD)) out += '[- ]?'; if (isD) out += c; else { const g = HG[c] || c; const set = (g + g.toUpperCase()).replace(/[\]\\^-]/g, '\\$&'); out += '[' + set + ']'; } });
-  return '^' + out + '$';
+const LAT2CYR = {K: 'К', A: 'А', E: 'Е', M: 'М', H: 'Н', O: 'О', P: 'Р', C: 'С', T: 'Т', X: 'Х', B: 'В', Y: 'У'}, CYR2LAT = Object.fromEntries(Object.entries(LAT2CYR).map(([a, b]) => [b, a]));
+function refVariants(q) {
+  const raw = q.replace(/[\s\-–—]+/g, '').toUpperCase(), m = raw.match(/^([A-ZА-ЯЁ]*?)(\d+)([A-ZА-ЯЁ]*)$/); if (!m) return [...new Set([q.trim(), q.trim().toUpperCase()])].filter(Boolean);
+  const [, pre, num, suf] = m, conv = (x, map) => x.split('').map(c => map[c] || c).join(''), forms = x => [...new Set([x, conv(x, LAT2CYR), conv(x, CYR2LAT)])];
+  const out = new Set(); forms(pre).forEach(p => forms(suf).forEach(sf => { out.add(p + num + sf); if (p) out.add(p + '-' + num + sf); if (sf) { out.add(p + num + sf.toLowerCase()); } }));
+  return [...out].slice(0, 14);
 }
 const SPB_BB = '59.60,29.40,60.25,31.10';
 async function trQuery(types, q, bb) {
-  const R = types.length ? types.filter(x => x !== 'subway' || true).map(x => x === 'train' ? 'train|light_rail' : x).join('|') : 'bus|trolleybus|tram|share_taxi|train|light_rail|subway';
-  const rt = `[route~"^(${R})$"]`, byRef = /\d/.test(q) || q.length <= 2;
-  const rx = q.replace(/[\\"^$.*+?()[\]{}|]/g, '\\$&');
-  const body = !q ? `rel${rt}(${bb});` : byRef ? `rel${rt}[ref~"${refRx(q)}",i](${bb});` : `rel${rt}[name~"${rx}",i](${bb});rel${rt}[to~"${rx}",i](${bb});rel${rt}[from~"${rx}",i](${bb});`;
-  const j = await lim(() => overpass(`[out:json][timeout:25];(${body});out tags 150;`, 25000));
+  const T = types.length ? types : ['bus', 'trolleybus', 'tram', 'share_taxi', 'train', 'light_rail', 'subway']; const R = T.map(x => x === 'train' ? 'train|light_rail' : x).join('|'), rt = `[route~"^(${R})$"]`;
+  const byRef = /\d/.test(q) || (q && q.length <= 2), rx = q.replace(/[\\"^$.*+?()[\]{}|]/g, '\\$&');
+  const body = !q ? `rel${rt}(${bb});` : byRef ? refVariants(q).map(v => `rel[ref="${v.replace(/"/g, '')}"]${rt}(${bb});`).join('') : `rel${rt}[name~"${rx}",i](${bb});rel${rt}[to~"${rx}",i](${bb});rel${rt}[from~"${rx}",i](${bb});`;
+  const j = await lim(() => overpass(`[out:json][timeout:25];(${body});out tags 120;`, 25000));
   return j.elements || [];
 }
 async function doTransportSearch(v) {
@@ -1445,16 +1438,23 @@ async function doTransportSearch(v) {
 }
 doTransportSearch.seq = 0;
 async function showLine(meta) {
-  tab('nav'); closeRoute(); toast(t('loading'), 2000);
+  tab('nav'); closeRoute(); const el = $('#rsheet'), V0 = VEH[meta.type] || VEH.bus;
+  el.classList.remove('lmin'); el.innerHTML = `<div class="grab"></div><div class="rhead"><div class="row" style="min-width:0"><span class="badge" style="background:${esc(meta.col || V0.col)}">${V0.ic} ${esc(meta.ref || '')}</span><div style="min-width:0"><div class="big" style="font-size:16px">${esc(trTitle(meta))}</div><div class="note" style="padding:0"><i class="spin"></i>${t('loading')}</div></div></div><button class="x" id="lx0">×</button></div>`; el.classList.add('on');
+  const token = {}; showLine.tok = token; $('#lx0').onclick = () => { showLine.tok = null; el.classList.remove('on'); };
   try {
-    const j = await lim(() => overpass(`[out:json][timeout:30];rel(${meta.id})->.r;.r out geom;node(r.r)->.n;.n out body qt;`, 30000));
-    const rel = (j.elements || []).find(e => e.type === 'relation'), ps = parseRels(j)[0];
-    const ways = rel ? (rel.members || []).filter(m => m.type === 'way' && m.geometry && m.geometry.length > 1 && !/platform|stop/.test(m.role || '')).map(m => m.geometry.map(g => [g.lon, g.lat])) : [];
-    let line = stitch(ways); if (line.length < 2 && ps) line = ps.stops.map(s => [s.lo, s.la]);
-    if (line.length < 2) throw new Error(t('err_noroute'));
-    const V = VEH[meta.type] || VEH.bus, col = meta.col || V.col; LINE = {meta, col, stops: ps ? ps.stops : [], line, min: false};
-    clearRouteDraw(); setG('route', [feat(line, {k: 'main', color: col})]); setG('pts', LINE.stops.map((s, i, a) => ptf([s.lo, s.la], {color: col, r: (i === 0 || i === a.length - 1) ? 7 : 3.5}))); fitTo(line); renderLine();
-  } catch (e) { toast(e.message || t('err_search'), 5000); }
+    let D = await kv.get('line4|' + meta.id);
+    if (!D) {
+      const j = await lim(() => overpass(`[out:json][timeout:30];rel(${meta.id});out geom;node(r);out body qt;`, 30000));
+      const rel = (j.elements || []).find(e => e.type === 'relation'), ps = parseRels(j)[0];
+      const ways = rel ? (rel.members || []).filter(m => m.type === 'way' && m.geometry && m.geometry.length > 1 && !/platform|stop/.test(m.role || '')).map(m => m.geometry.map(g => [g.lon, g.lat])) : [];
+      let line = stitch(ways); if (line.length < 2 && ps) line = ps.stops.map(s => [s.lo, s.la]);
+      if (line.length < 2) throw new Error(t('err_noroute'));
+      D = {line, stops: ps ? ps.stops : []}; kv.set('line4|' + meta.id, D);
+    }
+    if (showLine.tok !== token) return;
+    const V = VEH[meta.type] || VEH.bus, col = meta.col || V.col; LINE = {meta, col, stops: D.stops, line: D.line, min: false};
+    clearRouteDraw(); setG('route', [feat(D.line, {k: 'main', color: col})]); setG('pts', LINE.stops.map((s, i, a) => ptf([s.lo, s.la], {color: col, r: (i === 0 || i === a.length - 1) ? 7 : 3.5}))); fitTo(D.line); renderLine();
+  } catch (e) { if (showLine.tok !== token) return; el.innerHTML = `<div class="grab"></div><div class="rhead"><div class="note">⚠️ ${esc(e.message || t('err_search'))} <a class="retry" id="lrt">${t('retry')}</a></div><button class="x" id="lx1">×</button></div>`; $('#lx1').onclick = () => el.classList.remove('on'); $('#lrt').onclick = () => showLine(meta); }
 }
 function renderLine() {
   const el = $('#rsheet'), L = LINE; if (!L) return; const V = VEH[L.meta.type] || VEH.bus;
@@ -1504,7 +1504,7 @@ function showMetroPrompt(i, force) {
 
 
 /* ================= вкладка «Метро» (схема) ================= */
-document.head.insertAdjacentHTML('beforeend', '<style>#schemeBox .lb{fill:var(--text);pointer-events:none;font-size:14px;font-weight:600;paint-order:stroke;stroke:var(--chip);stroke-width:4px;stroke-linejoin:round}#schemeBox .lb.dim{opacity:.4}#schemeBox svg{touch-action:none}</style>');
+document.head.insertAdjacentHTML('beforeend', '<style>#schemeBox .lb{fill:var(--text);pointer-events:none;font-size:12.6px;font-weight:500}#schemeBox .lb.cl{fill:#999}#schemeBox .lb.dim{opacity:.35}#schemeBox svg{touch-action:none}#schemeBox .wt{fill:#e1f3fd}#schemeBox .wt2{stroke:#e1f3fd;stroke-width:14;stroke-linejoin:round}[data-theme=dark] #schemeBox .wt{fill:#16303f}[data-theme=dark] #schemeBox .wt2{stroke:#16303f}</style>');
 const MT = {from: null, to: null};
 let SC = {s: 1, x: 0, y: 0}, scHL = null, scGeo = null;
 async function openMetroTab() {
@@ -1522,7 +1522,8 @@ function computeMetro() {
   if (!M || MT.from == null || (MT.to == null && !dest)) { res.classList.remove('on'); renderScheme(); return; }
   const A = {st: MT.from}, B = MT.to != null ? {st: MT.to} : {lat: dest.lat, lon: dest.lon}, r = planMetro(M, A, B);
   if (!r) { res.innerHTML = t('no_metro_route'); res.classList.add('on'); renderScheme(); return; }
-  scHL = {nodes: new Set(r.path.map(p => p.i)), edges: new Set(r.path.slice(1).map((p, k) => Math.min(p.i, r.path[k].i) + '|' + Math.max(p.i, r.path[k].i)))};
+  scHL = {nodes: new Set(r.path.map(p => p.i)), steps: r.path.slice(1).filter(p => p.e && p.e.k === 'ride').map((p, k, arr) => null)};
+  scHL.steps = []; for (let k = 1; k < r.path.length; k++) { const e = r.path[k].e; if (e && e.k === 'ride') scHL.steps.push({li: e.li, ka: nk(M.st[r.path[k - 1].i].name), kb: nk(M.st[r.path[k].i].name)}); }
   const legs = metroLegs(M, r, A, B);
   res.innerHTML = `<div class="rhead"><div class="big">${fmtT(r.total)}</div><button class="btn" id="mOpen" style="padding:8px 14px">${t('on_map')}</button></div><div class="steps">` + legs.map(L => `<div class="step"><div class="si">${legIcon(L)}</div><div>${esc(legTitle(L))}</div></div>`).join('') + '</div>';
   res.classList.add('on'); renderScheme();
@@ -1532,71 +1533,85 @@ function computeMetro() {
     buildRoute({only: 'metro', st: {a: MT.from, b: MT.to}});
   };
 }
-/* ---- схематичная раскладка (как на официальной схеме): [x, y, сторона подписи] ---- */
-const SL = {
-  // М1 красная
-  'девяткино': [840, 60, 'r'], 'гражданскийпроспект': [840, 110, 'r'], 'академическая': [840, 160, 'r'], 'политехническая': [840, 210, 'l'], 'площадьмужества': [840, 260, 'r'],
-  'лесная': [800, 300, 'nw'], 'выборгская': [760, 340, 'nw'], 'площадьленина': [720, 380, 'nw'], 'чернышевская': [690, 410, 'nw'], 'площадьвосстания': [650, 450, 'sw'], 'владимирская': [620, 480, 'sw'], 'пушкинская': [540, 560, 'sw'],
-  'технологическийинститут': [460, 640, 'nw'], 'балтийская': [420, 680, 'nw'], 'нарвская': [380, 720, 'nw'], 'кировскийзавод': [340, 760, 'nw'], 'автово': [300, 800, 'nw'], 'ленинскийпроспект': [260, 840, 'nw'], 'проспектветеранов': [220, 880, 'nw'],
-  // М2 синяя
-  'парнас': [340, 50, 'r'], 'проспектпросвещения': [340, 100, 'r'], 'озерки': [340, 150, 'r'], 'удельная': [340, 200, 'r'], 'пионерская': [340, 250, 'r'], 'чернаяречка': [340, 300, 'r'], 'петроградская': [380, 340, 'ne'], 'горьковская': [420, 380, 'ne'], 'невскийпроспект': [460, 420, 'nw'],
-  'сеннаяплощадь': [460, 520, 't'], 'фрунзенская': [460, 690, 'r'], 'московскиеворота': [460, 740, 'r'], 'электросила': [460, 790, 'r'], 'паркпобеды': [460, 840, 'r'], 'московская': [460, 890, 'r'], 'звездная': [460, 940, 'r'], 'купчино': [460, 990, 'r'],
-  // М3 зелёная
-  'беговая': [100, 330, 'ne'], 'зенит': [140, 370, 'ne'], 'приморская': [180, 410, 'nw'], 'василеостровская': [220, 450, 'sw'], 'гостиныйдвор': [500, 450, 'sw'], 'маяковская': [600, 450, 't'], 'площадьалександраневского': [720, 450, 'ne'],
-  'елизаровская': [780, 510, 'ne'], 'ломоносовская': [840, 570, 'ne'], 'пролетарская': [900, 630, 'ne'], 'обухово': [960, 690, 'ne'], 'рыбацкое': [1020, 750, 'l'],
-  // М4 оранжевая
-  'спасская': [520, 520, 'b'], 'достоевская': [580, 520, 'se'], 'лиговскийпроспект': [650, 520, 'r'], 'новочеркасская': [780, 390, 'se'], 'ладожская': [840, 330, 'se'], 'проспектбольшевиков': [900, 270, 'se'], 'улицадыбенко': [960, 210, 'r'],
-  // М5 фиолетовая
-  'комендантскийпроспект': [80, 200, 'ne'], 'стараядеревня': [120, 240, 'ne'], 'крестовскийостров': [160, 280, 'ne'], 'чкаловская': [220, 340, 'ne'], 'спортивная': [280, 400, 'ne'], 'адмиралтейская': [340, 460, 'sw'], 'садовая': [400, 520, 'sw'],
-  'звенигородская': [520, 640, 'ne'], 'обводныйканал': [570, 690, 'ne'], 'волковская': [610, 730, 'ne'], 'бухарестская': [650, 770, 'ne'], 'международная': [690, 810, 'ne'], 'проспектславы': [730, 850, 'ne'], 'дунайская': [770, 890, 'ne'], 'шушары': [810, 930, 'ne']
-};
+/* ---- схема метро: повторяет «Яндекс»-схему СПб. Координаты в пикселях исходной картинки ---- */
 const nk = n => String(n || '').toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z]/g, '');
-const shortName = n => String(n || '').replace(/^Площадь /i, 'Пл. ').replace(/^Проспект /i, 'Пр. ').replace(/ проспект$/i, ' пр.').replace(/^Улица /i, 'Ул. ').replace(/Технологический институт.*/i, 'Технологический институт');
-function lbLines(n) { if (n.length <= 13) return [n]; const m = n.length / 2; let best = -1; for (let i = 0; i < n.length; i++) if (n[i] === ' ' && (best < 0 || Math.abs(i - m) < Math.abs(best - m))) best = i; return best < 0 ? [n] : [n.slice(0, best), n.slice(best + 1)]; }
-function schemePos(M) {
-  if (M._pos && M._pos.length === M.st.length) return M._pos;
-  const pos = M.st.map(s => { const p = SL[nk(s.name)]; return p ? {x: p[0], y: p[1], side: p[2], known: true} : null; });
-  const kn = []; pos.forEach((p, i) => { if (p) kn.push([M.st[i].lon, M.st[i].lat, p.x, p.y]); });
-  if (kn.length >= 6 && pos.some(p => !p)) { // аффинное приближение для неизвестных станций
-    const solve = (A, b) => { const n = 3, m = A.map((r, i) => r.concat([b[i]])); for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(m[r][c]) > Math.abs(m[p][c])) p = r; [m[c], m[p]] = [m[p], m[c]]; for (let r = 0; r < n; r++) if (r !== c) { const f = m[r][c] / (m[c][c] || 1e-12); for (let k = c; k <= n; k++) m[r][k] -= f * m[c][k]; } } return m.map((r, i) => r[n] / (r[i] || 1e-12)); };
-    const NA = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], bx = [0, 0, 0], by = [0, 0, 0]; kn.forEach(([lo, la, x, y]) => { const v = [lo, la, 1]; for (let i = 0; i < 3; i++) { for (let j = 0; j < 3; j++) NA[i][j] += v[i] * v[j]; bx[i] += v[i] * x; by[i] += v[i] * y; } });
-    const cx = solve(NA.map(r => r.slice()), bx), cy = solve(NA.map(r => r.slice()), by);
-    pos.forEach((p, i) => { if (!p) { const s = M.st[i]; pos[i] = {x: cx[0] * s.lon + cx[1] * s.lat + cx[2], y: cy[0] * s.lon + cy[1] * s.lat + cy[2], side: 'r', known: false}; } });
-  } else pos.forEach((p, i) => { if (!p) { const s = M.st[i]; pos[i] = {x: 500 + (s.lon - 30.3) * 4000, y: 500 - (s.lat - 59.93) * 8000, side: 'r', known: false}; } });
-  M._pos = pos; return pos;
+const SCC = {1: '#c43b35', 2: '#3a77b7', 3: '#6bb36b', 4: '#e08a3c', 5: '#8a4f9e', 6: '#8a5c3a'};
+// станция: [ключ, название, x, y, {подпись}]; излом: [x, y, 'b']; просто точка: [x, y]
+const SCP = {
+  1: [['девяткино', 'Девяткино', 566.5, 132], ['гражданскийпроспект', 'Гражданский проспект', 566.5, 164.5], ['академическая', 'Академическая', 566.5, 195], ['политехническая', 'Политехническая', 566.5, 226.5], ['площадьмужества', 'Площадь Мужества', 566.5, 258], ['лесная', 'Лесная', 566.5, 289.5], ['выборгская', 'Выборгская', 566.5, 320.5], ['площадьленина', 'Площадь Ленина', 566.5, 352], ['чернышевская', 'Чернышевская', 566.5, 388], ['площадьвосстания', 'Площадь Восстания', 566.5, 430.5, {x: 576, y: 420}],
+    [566.5, 497.5, 'b'], ['владимирская', 'Владимирская', 557.5, 506, {x: 562.5, y: 521}], ['пушкинская', 'Пушкинская', 491.5, 573.5, {a: 'e', x: 482.5, y: 573.5}], ['технологическийинститут', 'Технологический институт-1', 433.5, 631, {a: 'e', x: 418.5, y: 633.5}],
+    ['балтийская', 'Балтийская', 389, 675, {a: 'e', x: 374, y: 676.5}], ['нарвская', 'Нарвская', 347, 717.5, {a: 'e', x: 331, y: 717.5}], [323.5, 741, 'b'], ['кировскийзавод', 'Кировский завод', 323.5, 750.5, {x: 334, y: 745, t: ['Кировский', 'завод']}],
+    ['автово', 'Автово', 323.5, 784, {a: 'e', x: 317.5, y: 784}], ['ленинскийпроспект', 'Ленинский проспект', 323.5, 815, {a: 'e', x: 316, y: 815}], ['проспектветеранов', 'Проспект Ветеранов', 323.5, 846.5, {a: 'e', x: 316.5, y: 846.5}]],
+  2: [['парнас', 'Парнас', 442.5, 132], ['проспектпросвещения', 'Проспект Просвещения', 442.5, 164, {x: 450, y: 157.5, t: ['Проспект', 'Просвещения']}], ['озерки', 'Озерки', 442.5, 195], ['удельная', 'Удельная', 442.5, 226.5], ['пионерская', 'Пионерская', 442.5, 258], ['чернаяречка', 'Чёрная речка', 442.5, 289], ['петроградская', 'Петроградская', 442.5, 320.5], ['горьковская', 'Горьковская', 442.5, 351.5],
+    ['невскийпроспект', 'Невский проспект', 442.5, 419, {x: 453, y: 404, t: ['Невский', 'проспект']}], ['сеннаяплощадь', 'Сенная площадь', 442.5, 491, {x: 450, y: 469, t: ['Сенная', 'площадь']}], ['технологическийинститут', 'Технологический институт-2', 442.5, 621.5, {a: 'e', x: 437.5, y: 609}],
+    ['фрунзенская', 'Фрунзенская', 442.5, 658.5, {closed: 1}], ['московскиеворота', 'Московские ворота', 442.5, 689.5, {x: 450, y: 682.5, t: ['Московские', 'ворота']}], ['электросила', 'Электросила', 442.5, 720.5], ['паркпобеды', 'Парк Победы', 442.5, 752, {closed: 1}], ['московская', 'Московская', 442.5, 783.5], ['звездная', 'Звёздная', 442.5, 815], ['купчино', 'Купчино', 442.5, 846.5]],
+  3: [['беговая', 'Беговая', 200, 289.5, {a: 'e', x: 192, y: 289.5}], ['зенит', 'Зенит', 200, 320.5, {a: 'e', x: 192, y: 320.5}], ['приморская', 'Приморская', 200, 382.5, {a: 'e', x: 192, y: 382.5}], [200, 430, 'b'], ['василеостровская', 'Василеостровская', 249, 430, {a: 'm', x: 240, y: 444}],
+    ['гостиныйдвор', 'Гостиный двор', 442.5, 430, {a: 'e', x: 461, y: 444}], ['маяковская', 'Маяковская', 555.5, 430, {a: 'e', x: 558, y: 444}], [715, 430, 'b'], ['площадьалександраневского', 'Площадь Александра Невского-1', 715, 485, {x: 722.5, y: 481.5}],
+    ['елизаровская', 'Елизаровская', 715, 627.5], ['ломоносовская', 'Ломоносовская', 715, 658], ['пролетарская', 'Пролетарская', 715, 689.5], ['обухово', 'Обухово', 715, 720.5], ['рыбацкое', 'Рыбацкое', 715, 752.5]],
+  4: [[218.5, 497.5], ['горныйинститут', 'Горный институт', 250, 497.5, {x: 233.5, y: 471.5, t: ['Горный', 'институт']}], ['спасская', 'Спасская', 452, 497.5, {x: 459, y: 511}], ['достоевская', 'Достоевская', 567, 497.5, {x: 532.5, y: 482.5}], ['лиговскийпроспект', 'Лиговский проспект', 625, 497.5, {x: 624, y: 471, t: ['Лиговский', 'проспект']}],
+    ['площадьалександраневского', 'Площадь Александра Невского-2', 715, 497.5, {x: 720, y: 509, t: ['Площадь', 'Александра Невского-2']}], [862, 497.5, 'b'], ['новочеркасская', 'Новочеркасская', 862, 536, {x: 870, y: 536}], ['ладожская', 'Ладожская', 862, 569.5, {x: 870, y: 569.5}], ['проспектбольшевиков', 'Проспект Большевиков', 862, 604.5, {x: 870, y: 604.5}], ['улицадыбенко', 'Улица Дыбенко', 862, 641.5, {x: 870, y: 641.5}]],
+  5: [['комендантскийпроспект', 'Комендантский проспект', 323.5, 257.5, {a: 'e', x: 316.5, y: 250, t: ['Комендантский', 'проспект']}], ['стараядеревня', 'Старая Деревня', 323.5, 289.5, {a: 'e', x: 316.5, y: 289.5}], ['крестовскийостров', 'Крестовский остров', 323.5, 320.5, {a: 'e', x: 316.5, y: 314, t: ['Крестовский', 'остров']}], ['чкаловская', 'Чкаловская', 323.5, 362.5, {a: 'e', x: 316.5, y: 362.5}],
+    [323.5, 391, 'b'], ['спортивная', 'Спортивная', 337, 404, {a: 'e', x: 329, y: 404}], ['адмиралтейская', 'Адмиралтейская', 398, 461, {a: 'e', x: 390, y: 461.5}], ['садовая', 'Садовая', 442.5, 504, {a: 'e', x: 433, y: 511.5}], ['звенигородская', 'Звенигородская', 501.5, 563.5, {x: 514, y: 568.5}], ['обводныйканал', 'Обводный канал', 546.5, 609, {x: 558.5, y: 608.5}],
+    [566.5, 629, 'b'], ['волковская', 'Волковская', 566.5, 689.5], ['бухарестская', 'Бухарестская', 566.5, 720.5], ['международная', 'Международная', 566.5, 752.5], ['проспектславы', 'Проспект Славы', 566.5, 783.5], ['дунайская', 'Дунайская', 566.5, 815], ['шушары', 'Шушары', 566.5, 846.5]],
+  6: [['путиловская', 'Путиловская', 310, 750.5, {a: 'e', x: 310, y: 740}], [235, 752.5, 'b'], ['югозападная', 'Юго-Западная', 196, 783.5, {a: 'e', x: 188.5, y: 783.5}]]
+};
+const SCCAPS = [[[442.5, 419], [442.5, 430]], [[555.5, 430], [566.5, 430.5]], [[715, 485], [715, 497.5]], [[442.5, 491], [452, 497.5], [442.5, 504]], [[567, 497.5], [557.5, 506]], [[491.5, 573.5], [501.5, 563.5]], [[433.5, 631], [442.5, 621.5]], [[310, 750.5], [323.5, 750.5]]];
+const SCBADGES = [[1, 566.5, 101], [1, 323.5, 876.5], [2, 442.5, 101], [2, 442.5, 876.5], [3, 200, 260], [3, 715, 783.5], [4, 218.5, 497.5], [4, 862, 670], [5, 323.5, 225], [5, 566.5, 876.5], [6, 165, 817.5]];
+const SCICONS = [[425.5, 137.5, 1], [552, 137.5, 1], [552, 351.5, 1], [184.5, 403.5, 1], [582.5, 446, 1], [845.5, 570, 1], [500, 592.5, 1], [533, 626, 1], [402.5, 691, 1]];
+const SCWATER = 'M40 296L180 296L215 322L215 440L125 530L125 610L172 655L165 700L112 746L40 746Z';
+const SCW = 980, SCH = 850, SCX = 70, SCY = 85;
+const isSt = e => typeof e[0] === 'string';
+function rpath(pts, r) {
+  let d = '';
+  pts.forEach((p, i) => {
+    const x = p[isSt(p) ? 2 : 0], y = p[isSt(p) ? 3 : 1], b = !isSt(p) && p[2] === 'b';
+    if (!i) { d += `M${x} ${y}`; return; }
+    if (b && i < pts.length - 1) {
+      const a = pts[i - 1], n = pts[i + 1], ax = a[isSt(a) ? 2 : 0], ay = a[isSt(a) ? 3 : 1], nx = n[isSt(n) ? 2 : 0], ny = n[isSt(n) ? 3 : 1];
+      const l1 = Math.hypot(x - ax, y - ay) || 1, l2 = Math.hypot(nx - x, ny - y) || 1, rr = Math.min(r, l1 / 2, l2 / 2);
+      d += `L${(x - (x - ax) / l1 * rr).toFixed(1)} ${(y - (y - ay) / l1 * rr).toFixed(1)}Q${x} ${y} ${(x + (nx - x) / l2 * rr).toFixed(1)} ${(y + (ny - y) / l2 * rr).toFixed(1)}`;
+    } else d += `L${x} ${y}`;
+  });
+  return d;
 }
-const SCW = 1100, SCH = 1040;
+function schemeMap(M) { // номер линии OSM → номер на схеме, ключ станции → индексы
+  if (M._sm) return M._sm;
+  const keys = {}; Object.keys(SCP).forEach(n => { keys[n] = new Set(SCP[n].filter(isSt).map(e => e[0])); });
+  const lnum = M.lines.map(L => { const cnt = {}; L.variants.forEach(v => v.forEach(i => { const k = nk(M.st[i].name); Object.keys(keys).forEach(n => { if (keys[n].has(k)) cnt[n] = (cnt[n] || 0) + 1; }); })); let best = null, bv = 0; Object.keys(cnt).forEach(n => { if (cnt[n] > bv) { bv = cnt[n]; best = +n; } }); return best; });
+  const k2i = {}; M.st.forEach((s, i) => { const k = nk(s.name); (k2i[k] = k2i[k] || []).push(i); });
+  return M._sm = {lnum, k2i};
+}
 function renderScheme() {
   const M = metroMem, box = $('#schemeBox'); if (!M) return;
-  const st = M.st, P = schemePos(M), FS = 14; scGeo = {W: SCW, H: SCH};
-  const dim = scHL ? .2 : 1; let ln = '', hl = '', lk = '', dots = '', labs = '';
-  M.lines.forEach((L, li) => {
-    let dd = '', hd = '';
-    st.forEach((s, i) => M.adj[i].forEach(e => { if (e.k !== 'ride' || e.li !== li || i > e.to) return; const seg = `M${P[i].x.toFixed(0)} ${P[i].y.toFixed(0)}L${P[e.to].x.toFixed(0)} ${P[e.to].y.toFixed(0)}`; if (scHL && scHL.edges.has(i + '|' + e.to)) hd += seg; else dd += seg; }));
-    ln += `<path d="${dd}" stroke="${esc(L.color)}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="${dim}"/>`;
-    if (hd) hl += `<path d="${hd}" stroke="#fff" stroke-width="16" stroke-linecap="round" fill="none"/><path d="${hd}" stroke="${esc(L.color)}" stroke-width="11" stroke-linecap="round" fill="none"/>`;
-  });
-  st.forEach((s, i) => M.adj[i].forEach(e => { if (e.k !== 'xfer' || i > e.to) return; const a = P[i], b = P[e.to]; lk += `<path d="M${a.x.toFixed(0)} ${a.y.toFixed(0)}L${b.x.toFixed(0)} ${b.y.toFixed(0)}" stroke="#555" stroke-width="9" stroke-linecap="round" opacity="${dim === 1 ? 1 : .35}"/><path d="M${a.x.toFixed(0)} ${a.y.toFixed(0)}L${b.x.toFixed(0)} ${b.y.toFixed(0)}" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity="${dim === 1 ? 1 : .35}"/>`; }));
-  st.forEach((s, i) => {
-    const on = scHL ? scHL.nodes.has(i) : true, p = P[i], hasX = M.adj[i].some(e => e.k === 'xfer'), inter = s.lines.length > 1 || hasX, sel = MT.from === i || MT.to === i;
-    const col = s.lines.length ? M.lines[s.lines[0]].color : '#333', X = p.x.toFixed(1), Y = p.y.toFixed(1);
-    dots += `<circle cx="${X}" cy="${Y}" r="${inter ? 8.5 : 6}" fill="#fff" stroke="${inter ? '#222' : esc(col)}" stroke-width="${inter ? 3.5 : 3.5}" opacity="${on ? 1 : .4}"/>` + (sel ? `<circle cx="${X}" cy="${Y}" r="14" fill="none" stroke="${MT.from === i ? '#16a34a' : '#ef4444'}" stroke-width="4"/>` : '') + `<circle data-i="${i}" cx="${X}" cy="${Y}" r="20" fill="transparent"/>`;
-    const lines = lbLines(shortName(sname(s.name, s.en))), n = lines.length, side = p.side, lh = FS * 1.08; let x = p.x, y = p.y, an = 'start';
-    if (side === 'r') { x += 13; y = p.y - (n - 1) * lh / 2 + FS * .35; } else if (side === 'l') { x -= 13; an = 'end'; y = p.y - (n - 1) * lh / 2 + FS * .35; }
-    else if (side === 'ne') { x += 11; y = p.y - 10 - (n - 1) * lh; } else if (side === 'nw') { x -= 11; an = 'end'; y = p.y - 10 - (n - 1) * lh; }
-    else if (side === 'se') { x += 11; y = p.y + 10 + FS * .8; } else if (side === 'sw') { x -= 11; an = 'end'; y = p.y + 10 + FS * .8; }
-    else if (side === 't') { an = 'middle'; y = p.y - 13 - (n - 1) * lh; } else { an = 'middle'; y = p.y + 13 + FS * .8; }
-    labs += `<text class="lb ${on ? '' : 'dim'}" text-anchor="${an}" style="${sel ? 'font-weight:800' : ''}">` + lines.map((tx, k) => `<tspan x="${x.toFixed(1)}" y="${(y + k * lh).toFixed(1)}">${esc(tx)}</tspan>`).join('') + '</text>';
-  });
-  box.innerHTML = `<svg viewBox="0 0 ${SCW} ${SCH}" xmlns="http://www.w3.org/2000/svg">${ln}${hl}${lk}${dots}${labs}</svg>`;
-  const lg = M.lines.map(L => `<span class="badge" style="background:${esc(L.color)}">${esc(mref(L))}</span>`).join(' ');
+  const {lnum, k2i} = schemeMap(M), dim = scHL ? .3 : 1, sel = i => MT.from === i || MT.to === i;
+  let water = `<path class="wt" d="${SCWATER}"/><rect class="wt" x="233" y="556" width="292" height="76" rx="22"/><path class="wt2" d="M232 338L352 338Q384 338 404 318L470 308L650 308Q712 308 718 372L718 440" fill="none"/><path class="wt2" d="M800 448L1060 920" fill="none" stroke-width="16"/><path class="wt2" d="M236 372L330 470L440 470" fill="none"/>`;
+  let ln = '', caps = '', dots = '', labs = '', hit = '', badges = '', icons = '', hl = '';
+  Object.keys(SCP).forEach(n => { ln += `<path d="${rpath(SCP[n], 14)}" stroke="${SCC[n]}" stroke-width="5.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`; });
+  SCCAPS.forEach(c => { const d = c.map((p, i) => (i ? 'L' : 'M') + p[0] + ' ' + p[1]).join(''); caps += `<path d="${d}" stroke="#111" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="${d}" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`; });
+  Object.keys(SCP).forEach(n => SCP[n].forEach(e => {
+    if (!isSt(e)) return; const [k, name, x, y, lb] = e, o = lb || {}, idx = k2i[k] || [], inP = scHL && idx.some(i => scHL.nodes.has(i)), on = !scHL || inP;
+    if (o.closed) dots += `<circle cx="${x}" cy="${y}" r="5.5" fill="#fff" stroke="#222" stroke-width="1.6"/><path d="M${x - 2.6} ${y - 2.6}L${x + 2.6} ${y + 2.6}M${x + 2.6} ${y - 2.6}L${x - 2.6} ${y + 2.6}" stroke="#222" stroke-width="1.6"/>`;
+    else dots += `<circle cx="${x}" cy="${y}" r="${inP ? 5.4 : 3.8}" fill="${SCC[n]}" opacity="${on ? 1 : .35}" ${inP ? 'stroke="#fff" stroke-width="2"' : ''}/>`;
+    if (idx.some(sel)) dots += `<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="${idx.includes(MT.from) ? '#16a34a' : '#ef4444'}" stroke-width="3.5"/>`;
+    const lines = o.t || [name], a = o.a || 's', lx = o.x != null ? o.x : x + 8, ly = o.y != null ? o.y : y, an = a === 'e' ? 'end' : a === 'm' ? 'middle' : 'start';
+    labs += `<text class="lb${o.closed ? ' cl' : ''}${on ? '' : ' dim'}" text-anchor="${an}">` + lines.map((tx, j) => `<tspan x="${lx}" y="${ly + j * 13.5}" dominant-baseline="central">${esc(tx)}</tspan>`).join('') + '</text>';
+    if (idx.length && !o.closed) hit += `<circle data-i="${idx[0]}" cx="${x}" cy="${y}" r="13" fill="transparent"/>`;
+  }));
+  SCBADGES.forEach(([n, x, y]) => { badges += `<circle cx="${x}" cy="${y}" r="13" fill="${SCC[n]}"/><text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="13" font-weight="800">${n}</text>`; });
+  SCICONS.forEach(([x, y]) => { icons += `<rect x="${x - 9}" y="${y - 9}" width="18" height="18" rx="5" fill="#3d7ad6"/><rect x="${x - 4}" y="${y - 5}" width="8" height="9" rx="2" fill="#fff"/>`; });
+  icons += `<rect x="358" y="898" width="18" height="18" rx="4" fill="#666"/><text x="367" y="907" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="12">✈</text><text class="lb" x="382" y="907" dominant-baseline="central">LED</text>`;
+  if (scHL) { // подсветка выбранного пути
+    scHL.steps.forEach(s => { const n = lnum[s.li]; if (!n || !SCP[n]) return; const P = SCP[n], ia = P.findIndex(e => isSt(e) && e[0] === s.ka), ib = P.findIndex(e => isSt(e) && e[0] === s.kb); if (ia < 0 || ib < 0) return; const sl = ia < ib ? P.slice(ia, ib + 1) : P.slice(ib, ia + 1).reverse(); const d = rpath(sl, 14); hl += `<path d="${d}" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="${d}" stroke="${SCC[n]}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`; });
+  }
+  box.innerHTML = `<svg viewBox="0 0 ${SCW} ${SCH}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${-SCX} ${-SCY})"><g class="wtg">${water}</g><g opacity="${dim}">${ln}${caps}</g>${hl}${scHL ? '' : ''}${dots}${icons}${badges}${labs}${hit}</g></svg>`;
+  const lg = M.lines.map((L, li) => `<span class="badge" style="background:${lnum[li] ? SCC[lnum[li]] : esc(L.color)}">${esc(mref(L))}</span>`).join(' ');
   if (!$('#schemeLeg')) box.insertAdjacentHTML('beforebegin', '<div id="schemeLeg" style="margin:6px 0"></div>'); $('#schemeLeg').innerHTML = lg;
   bindScheme(box);
 }
 function bindScheme(box) {
   const svg = box.querySelector('svg'), P = new Map(); let moved = 0, g0 = null, tapEl = null;
   const k0 = () => Math.min(box.clientWidth / SCW, box.clientHeight / SCH) || .3;
-  if (!SC.init && box.clientWidth) { const k = k0(), s = 1.6, ox = (box.clientWidth - SCW * k) / 2, oy = (box.clientHeight - SCH * k) / 2; SC = {s, x: box.clientWidth / 2 - s * (ox + 520 * k), y: box.clientHeight / 2 - s * (oy + 520 * k), init: true}; }
+  if (!SC.init && box.clientWidth) { const k = k0(), s = 2.1, ox = (box.clientWidth - SCW * k) / 2, oy = (box.clientHeight - SCH * k) / 2; SC = {s, x: box.clientWidth / 2 - s * (ox + (450 - SCX) * k), y: box.clientHeight / 2 - s * (oy + (480 - SCY) * k), init: true}; }
   const apply = () => { svg.style.transform = `translate(${SC.x}px,${SC.y}px) scale(${SC.s})`; };
   const rel = e => { const r = box.getBoundingClientRect(); return {x: e.clientX - r.left, y: e.clientY - r.top}; };
   const geo = () => { const v = [...P.values()]; if (v.length < 2) return null; return {d: Math.hypot(v[0].x - v[1].x, v[0].y - v[1].y) || 1, mx: (v[0].x + v[1].x) / 2, my: (v[0].y + v[1].y) / 2}; };
@@ -1691,7 +1706,7 @@ $('#v-settings').addEventListener('change', e => {
   const k = e.target.dataset.tg; if (!k) return; const on = e.target.checked;
   if (k === 'd3') set3D(on); else if (k === 'sat') setSat(on); else { S[k] = on; save(); if (k === 'speedo') updateSpeed(); if (k === 'trees') { lastTree = null; refreshTrees(); } if (k === 'limitWarn') limitTick(); if (k === 'voice') $('#nbVoice').textContent = on ? '🔊' : '🔇'; }
 });
-async function clearTransit() { const ks = await kv.keys(); for (const k of ks) if (/^(nr3\||geom3\||metro3)/.test(String(k))) await kv.del(k); metroMem = null; toast(t('cleared')); }
+async function clearTransit() { const ks = await kv.keys(); for (const k of ks) if (/^(nr3\||rf4\||ts3\||line4\||rd3\||ni3\||geom3\||metro3)/.test(String(k))) await kv.del(k); metroMem = null; toast(t('cleared')); }
 
 /* ================= офлайн-карты ================= */
 let dl = null;
