@@ -8,8 +8,25 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+/* библиотека карты: три независимых CDN подряд — если один недоступен, берётся следующий */
+(function () {
+  var V = '4.7.1', H = ['https://unpkg.com/maplibre-gl@' + V + '/dist/maplibre-gl', 'https://cdn.jsdelivr.net/npm/maplibre-gl@' + V + '/dist/maplibre-gl', 'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/' + V + '/maplibre-gl'], cssOk = false;
+  function css(i) { if (cssOk || i >= H.length) return; var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = H[i] + '.css'; l.onload = function () { cssOk = true; }; l.onerror = function () { l.remove(); css(i + 1); }; document.head.appendChild(l); }
+  css(0);
+  window.__mlReady = new Promise(function (resolve) {
+    var i = 0;
+    (function next() {
+      if (window.maplibregl) return resolve(true); if (i >= H.length) return resolve(false);
+      var s = document.createElement('script'), done = false; s.src = H[i++] + '.js';
+      var to = setTimeout(function () { if (done) return; done = true; s.onload = s.onerror = null; next(); }, 15000);
+      s.onload = function () { if (done) return; done = true; clearTimeout(to); if (window.maplibregl) resolve(true); else next(); };
+      s.onerror = function () { if (done) return; done = true; clearTimeout(to); s.remove(); next(); };
+      document.head.appendChild(s);
+    })();
+  });
+})();
+</script>
 <style>
 :root{--bg:#f2f4f7;--surf:#fff;--blur:none;--text:#10141a;--muted:#667085;--line:rgba(16,24,40,.09);--chip:#eef1f5;--accent:#22c55e;--sline:rgba(16,24,40,.06);--sh:0 10px 34px rgba(16,24,40,.16);--vbg:#f2f4f7;--r:20px;--nav:60px;--sb:env(safe-area-inset-bottom);--st:env(safe-area-inset-top);--red:#ef4444}
 [data-theme=dark]{--bg:#0e1116;--surf:#181c23;--text:#f3f5f8;--muted:#9aa4b2;--line:rgba(255,255,255,.09);--chip:#242a33;--sline:rgba(255,255,255,.06);--sh:0 10px 34px rgba(0,0,0,.55);--vbg:#0e1116}
@@ -48,12 +65,12 @@ body:not(.tab-nav) #navUI>*{pointer-events:none}
 #modes{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;position:relative}
 #modes button{flex:1;white-space:nowrap;background:var(--chip);border-radius:20px;padding:8px 10px;font-size:13px;font-weight:550;transition:background .25s,color .25s,transform .2s}
 #modes button.on{background:var(--accent);color:#fff;transform:scale(1.03)}
-#side{position:absolute;right:12px;top:calc(172px + var(--st));display:flex;flex-direction:column;gap:10px;transition:opacity .25s,transform .3s}
+#side{position:absolute;right:12px;top:calc(214px + var(--st));display:flex;flex-direction:column;gap:10px;transition:opacity .25s,transform .3s}
 .fab{width:46px;height:46px;border-radius:50%;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--accent);transition:transform .15s}
 .fab:active{transform:scale(.9)}
 .fab svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #compBtn svg{transition:transform .2s}
-#speedo{position:absolute;left:12px;top:calc(172px + var(--st));min-width:64px;padding:8px 12px;text-align:center;display:none;flex-direction:column;line-height:1.05}
+#speedo{position:absolute;left:12px;top:calc(214px + var(--st));min-width:64px;padding:8px 12px;text-align:center;display:none;flex-direction:column;line-height:1.05}
 #speedo.on{display:flex;animation:pop .3s}
 #speedo b{font-size:26px;font-variant-numeric:tabular-nums}
 #speedo span{font-size:11px;color:var(--muted)}
@@ -178,16 +195,29 @@ body.picking #top,body.picking #side,body.picking #rsheet,body.picking #poi{opac
 .hbar{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
 .hbar a{color:var(--accent);font-size:13px;cursor:pointer}
 #rsheet.lmin .steps{display:none}
-#limit{position:absolute;left:12px;top:calc(238px + var(--st));width:58px;height:58px;border-radius:50%;background:#fff;border:6px solid #e11d48;color:#111;font-weight:800;font-size:22px;display:none;align-items:center;justify-content:center;box-shadow:var(--sh);font-variant-numeric:tabular-nums}
+#limit{position:absolute;left:84px;top:calc(214px + var(--st));width:58px;height:58px;border-radius:50%;background:#fff;border:6px solid #e11d48;color:#111;font-weight:800;font-size:22px;display:none;align-items:center;justify-content:center;box-shadow:var(--sh);font-variant-numeric:tabular-nums}
 #limit.on{display:flex;animation:pop .3s}
 #limit.over{animation:blink .7s infinite;background:#e11d48;color:#fff;border-color:#fff}
 #limit small{position:absolute;bottom:-18px;font-size:10px;font-weight:600;color:var(--muted);white-space:nowrap}
-#overwarn{position:absolute;left:12px;top:calc(312px + var(--st));padding:6px 10px;background:#e11d48;color:#fff;font-weight:700;border-radius:12px;font-size:12px;display:none;box-shadow:var(--sh)}
+#overwarn{position:absolute;left:12px;top:calc(296px + var(--st));padding:6px 10px;background:#e11d48;color:#fff;font-weight:700;border-radius:12px;font-size:12px;display:none;box-shadow:var(--sh)}
 #overwarn.on{display:block}
-body.navmode #limit{top:calc(188px + var(--st))}
-body.navmode #overwarn{top:calc(262px + var(--st))}
+body.navmode #limit{top:calc(122px + var(--st))}
+body.navmode #overwarn{top:calc(196px + var(--st))}
+body.navmode #camwarn{top:calc(232px + var(--st))}
 @keyframes blink{50%{opacity:.55}}
 .badge.toll{background:#b45309}
+#camwarn{position:absolute;left:12px;top:calc(332px + var(--st));padding:6px 10px;background:#f97316;color:#fff;font-weight:700;border-radius:12px;font-size:12px;display:none;box-shadow:var(--sh)}
+#camwarn.on{display:block;animation:pop .25s}
+#quick{display:flex;gap:6px;margin-top:6px}
+#quick button{flex:1;background:var(--chip);border-radius:16px;padding:6px 10px;font-size:12.5px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#quick button:active{transform:scale(.96)}
+.chips button.on{background:var(--accent);color:#fff}
+.mn::before{content:'▾'}
+.smin .mn::before{content:'▴'}
+.smin>*:not(.rhead):not(.grab){display:none!important}
+.sheet.smin,#mres.smin,#msheet.smin{max-height:none;overflow:hidden}
+body.xon #rsheet{opacity:0;pointer-events:none;transform:translateY(40px)}
+.vb.toll{background:#b45309}
 .badge.free{background:#15803d}
 .pin.v{background:#8b5cf6}
 </style>
@@ -201,6 +231,7 @@ body.navmode #overwarn{top:calc(262px + var(--st))}
     <div class="trow"><i class="td"></i><button class="pill" id="fromPill"></button><button class="ic" id="swapBtn" aria-label="swap">⇅</button></div>
     <div class="trow"><i class="td r"></i><button class="pill" id="toPill"></button></div>
     <div id="modes"></div>
+    <div id="quick"></div>
   </div>
   <div id="side">
     <button id="compBtn" class="fab surf" aria-label="north"><svg viewBox="0 0 24 24"><path d="M12 3l4 9h-8z" fill="currentColor"/><path d="M12 21l-4-9h8z" opacity=".4"/></svg></button>
@@ -209,9 +240,10 @@ body.navmode #overwarn{top:calc(262px + var(--st))}
     <button id="locate" class="fab surf" aria-label="locate"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
   </div>
   <div id="speedo" class="surf"><b id="spv">0</b><span id="spu"></span></div>
-  <div id="limit"><span id="limv">60</span><small id="limt"></small></div><div id="overwarn"></div>
+  <div id="limit"><span id="limv">60</span><small id="limt"></small></div><div id="overwarn"></div><div id="camwarn"></div>
   <div id="rsheet" class="surf sheet"></div>
   <div id="poi" class="surf sheet"></div>
+  <div id="xsheet" class="surf sheet"></div>
   <div id="mprompt" class="surf sheet"></div>
   <div id="pickbar" class="surf sheet"><div class="big" id="pickTitle"></div><div class="sub" id="pickAddr" style="min-height:20px"></div><div class="opt"><button class="btn ghost" id="pickCancel"></button><button class="btn" id="pickOk"></button></div></div>
   <div id="navBanner" class="surf"><div class="arr" id="nbArr">↑</div><div style="min-width:0"><div class="big" id="nbDist"></div><div id="nbTxt"></div><div class="sub" id="nbNext"></div></div></div>
@@ -333,14 +365,38 @@ Object.assign(D.en, {
   limit_over: 'Speeding! Limit {0}', terr_city: 'urban', terr_out: 'rural', share_route: 'Share route'
 });
 
+Object.assign(D.ru, {
+  t_tolls: 'Платные трассы', toll_note: 'На маршруте есть платные участки (на карте отмечены оранжевым). Бесплатный вариант смотрите в списке выше.', toll_start: 'Начинается платный участок', toll_ahead: 'Через {0} метров платный участок',
+  cam_ahead: 'Камера через {0} метров', set_cam: 'Предупреждать о камерах', set_cam_sub: 'Значок и голос перед камерами контроля скорости на маршруте (только авто)',
+  set_autodn: 'Авто день/ночь', set_autodn_sub: 'Тёмная карта после захода солнца, светлая днём. Заменяет выбор темы выше', set_perf: 'Экономный режим', set_perf_sub: 'Без 3D-зданий и деревьев, меньше нагрузка. Включается сам на слабых устройствах',
+  set_fuel: 'Расход и цена топлива', fuel_l: 'л/100 км', fuel_p: '₽/л', arr_at: 'прибытие {0}', fuel_cost: '≈ {0} ₽ топлива',
+  btn_fuel: 'Заправки', btn_chg: 'Зарядки', btn_park: 'Парковки', aside: 'в стороне', every_n: 'каждые ~{0} мин', next_exit: 'Следующая остановка ваша: {0}. Приготовьтесь выходить',
+  f_fast: 'Быстрее', f_xfer: 'Меньше пересадок', f_walk: 'Меньше пешком', quick_set: 'задать', route_saved: 'Маршрут сохранён', saved_routes: 'Сохранённые маршруты', trip_hist: 'История поездок',
+  diag: 'Диагностика', diag_retry: 'Перепроверить карту', diag_map: 'Карта', diag_fb: 'резервная', diag_tiles: 'плиток', diag_errs: 'ошибок', diag_last: 'Последняя ошибка',
+  map_slow: 'Карта грузится медленно: включена резервная. Основную догружаю в фоне', geo_weak: 'Местоположение определяется долго. Выйдите на открытое место и включите GPS', restart_hint: 'Готово. Карта перерисована'
+});
+Object.assign(D.en, {
+  t_tolls: 'Toll roads', toll_note: 'This route has toll sections (orange on the map). See the free option in the list above.', toll_start: 'Toll section begins', toll_ahead: 'Toll section in {0} meters',
+  cam_ahead: 'Speed camera in {0} meters', set_cam: 'Speed camera warnings', set_cam_sub: 'Icon and voice before speed cameras on the route (car only)',
+  set_autodn: 'Auto day/night', set_autodn_sub: 'Dark map after sunset, light by day. Overrides the theme above', set_perf: 'Battery saver', set_perf_sub: 'No 3D buildings or trees, lighter load. Turns on by itself on weak devices',
+  set_fuel: 'Fuel use and price', fuel_l: 'L/100 km', fuel_p: '₽/L', arr_at: 'arrive {0}', fuel_cost: '≈ {0} ₽ fuel',
+  btn_fuel: 'Gas stations', btn_chg: 'Chargers', btn_park: 'Parking', aside: 'off route', every_n: 'every ~{0} min', next_exit: 'Your stop is next: {0}. Get ready to exit',
+  f_fast: 'Fastest', f_xfer: 'Fewer transfers', f_walk: 'Less walking', quick_set: 'set', route_saved: 'Route saved', saved_routes: 'Saved routes', trip_hist: 'Trip history',
+  diag: 'Diagnostics', diag_retry: 'Recheck map', diag_map: 'Map', diag_fb: 'fallback', diag_tiles: 'tiles', diag_errs: 'errors', diag_last: 'Last error',
+  map_slow: 'Map is loading slowly: using a backup map. Loading the main one in the background', geo_weak: 'Location is slow. Go outdoors and turn on GPS', restart_hint: 'Done. Map redrawn'
+});
+
 "use strict";
 /* ================= утилиты и состояние ================= */
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
-let S = {lang: 'ru', theme: 'auto', style: 'standard', accent: '#22c55e', d3: true, sat: false, mode: 'foot', arrow: 'arrow', speedo: true, voice: true, limitWarn: true, trees: true, favs: [], hist: [], thist: [], home: null, work: null};
+let S = {lang: 'ru', theme: 'auto', style: 'standard', accent: '#22c55e', d3: true, sat: false, mode: 'foot', arrow: 'arrow', speedo: true, voice: true, limitWarn: true, trees: true, autoDN: true, camWarn: true, perf: null, fuelL: 8, fuelP: 60, trips: [], routes: [], favs: [], hist: [], thist: [], home: null, work: null};
 try { const o = JSON.parse(localStorage.getItem('nova3') || localStorage.getItem('nova') || '{}'); for (const k in S) if (k in o && o[k] != null) S[k] = o[k]; } catch (e) {}
 if (!['foot', 'bike', 'car', 'transit'].includes(S.mode)) S.mode = 'transit';
 if (!D[S.lang]) S.lang = 'ru';
+const DIAG = {tiles: 0, errs: 0, lastErr: '', gpu: '', style: 'vector', geo: '', fb: false};
+const WEAK = (() => { try { const gl = document.createElement('canvas').getContext('webgl'); const e = gl && gl.getExtension('WEBGL_debug_renderer_info'); DIAG.gpu = e ? String(gl.getParameter(e.UNMASKED_RENDERER_WEBGL)) : (gl ? 'webgl' : 'no webgl'); return /swiftshader|llvmpipe|software|basic render/i.test(DIAG.gpu) || !!(navigator.deviceMemory && navigator.deviceMemory <= 2) || !!(navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2); } catch (e) { return false; } })();
+if (S.perf == null) S.perf = WEAK;
 const save = () => { try { localStorage.setItem('nova3', JSON.stringify(S)); } catch (e) {} };
 const t = (k, ...a) => { let s = (D[S.lang] && D[S.lang][k] != null) ? D[S.lang][k] : (D.ru[k] != null ? D.ru[k] : k); a.forEach((v, i) => { s = s.split('{' + i + '}').join(v); }); return s; };
 const WALK = 80; // м/мин
@@ -446,20 +502,34 @@ function darkCol(s, key) {
   return `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${c[3]})`;
 }
 function mapCols(v, f) { if (typeof v === 'string') return COLRE.test(v) ? f(v) : v; if (Array.isArray(v)) return v.map(x => mapCols(x, f)); return v; }
-const isDark = () => S.theme === 'dark' || (S.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+/* высота солнца → «ночь» для авто-смены вида */
+function sunElev(lat, lon, ms) {
+  const r = Math.PI / 180, day = ms / 86400000 + 2440587.5 - 2451545, L = (280.46 + 0.9856474 * day) % 360, g = ((357.528 + 0.9856003 * day) % 360) * r,
+    lam = (L + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * r, eps = 23.439 * r, dec = Math.asin(Math.sin(eps) * Math.sin(lam)), ra = Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam)),
+    gm = (280.16 + 360.9856235 * day) % 360, ha = (gm + lon) * r - ra;
+  return Math.asin(Math.sin(lat * r) * Math.sin(dec) + Math.cos(lat * r) * Math.cos(dec) * Math.cos(ha)) / r;
+}
+function nightNow() { let p = {lat: 59.93, lon: 30.31}; try { if (typeof me !== 'undefined' && me) p = me; else if (typeof map !== 'undefined' && map && map.getCenter) { const c = map.getCenter(); p = {lat: c.lat, lon: c.lng}; } } catch (e) {} return sunElev(p.lat, p.lon, Date.now()) < -1.5; }
+const isDark = () => S.autoDN ? nightNow() : (S.theme === 'dark' || (S.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches));
 
 
 /* ================= карта ================= */
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 let map = null, baseStyle = null, extr = [], lastDark = null;
-const G = {acc: [], route: [], pts: []};
+const G = {acc: [], route: [], pts: [], cams: []};
 let meMarker = null, me = null, destMarker = null, startMarker = null, dest = null, startPt = null, sim = null, nav = null, follow = true, compassH = null, mapPick = null, pickFor = 'to';
 let routeMarkers = [], poiMarker = null, lpAt = 0;
 
+const FALLBACK_STYLE = {version: 8, sources: {osm: {type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap'}}, layers: [{id: 'bg', type: 'background', paint: {'background-color': '#e9edf1'}}, {id: 'osm', type: 'raster', source: 'osm'}]};
 async function loadBase() {
   if (baseStyle) return baseStyle;
-  try { baseStyle = await fj(STYLE_URL, {ms: 12000}); kv.set('style', baseStyle); }
-  catch (e) { const c = await kv.get('style'); if (!c) throw e; baseStyle = c; }
+  let err = null;
+  for (let k = 0; k < 3 && !baseStyle; k++) {
+    try { baseStyle = await fj(STYLE_URL, {ms: k ? 25000 : 15000}); kv.set('style', baseStyle); }
+    catch (e) { err = e; const c = await kv.get('style'); if (c) { baseStyle = c; break; } if (k < 2) await sleep(800); }
+  }
+  if (!baseStyle) throw err || new Error('style');
+  DIAG.style = 'vector'; DIAG.fb = false;
   extr = baseStyle.layers.filter(l => l.type === 'fill-extrusion').map(l => ({id: l.id, h: l.paint && l.paint['fill-extrusion-height'], b: l.paint && l.paint['fill-extrusion-base']}));
   return baseStyle;
 }
@@ -489,16 +559,33 @@ function buildStyle(base) {
     greenify(st);
     if (dark) for (const l of st.layers) { if (!l.paint) continue; for (const k in l.paint) if (/color$/.test(k)) l.paint[k] = mapCols(l.paint[k], c => darkCol(c, k)); }
   }
-  if (!S.d3) st.layers.forEach(l => { if (l.type === 'fill-extrusion') { l.paint = l.paint || {}; l.paint['fill-extrusion-height'] = 0; l.paint['fill-extrusion-base'] = 0; } });
+  if (!S.d3 || S.perf) st.layers.forEach(l => { if (l.type === 'fill-extrusion') { l.paint = l.paint || {}; l.paint['fill-extrusion-height'] = 0; l.paint['fill-extrusion-base'] = 0; } });
   return st;
 }
 function rebuildStyle() { if (map && baseStyle) map.setStyle(buildStyle(baseStyle), {diff: false}); }
+/* резервная растровая карта, пока векторная не загрузилась (плохая сеть, блокировки); векторную пробуем снова в фоне */
+let retryT = null;
+function useFallback(msg) {
+  if (DIAG.fb) return; DIAG.fb = true; DIAG.style = 'raster'; baseStyle = JSON.parse(JSON.stringify(FALLBACK_STYLE)); extr = [];
+  if (map) rebuildStyle(); if (msg) toast(msg, 6000); clearTimeout(retryT); retryT = setTimeout(retryVector, 12000);
+}
+async function retryVector() {
+  if (!DIAG.fb) return;
+  try { const keep = baseStyle; baseStyle = null; try { await loadBase(); } catch (e) { baseStyle = keep; throw e; } DIAG.fb = false; DIAG.tiles = 0; if (map) rebuildStyle(); }
+  catch (e) { clearTimeout(retryT); retryT = setTimeout(retryVector, 20000); }
+}
 
 async function initMap() {
-  if (typeof maplibregl === 'undefined') { toast(t('err_map'), 9000); return; }
-  try { await loadBase(); } catch (e) { baseStyle = {version: 8, sources: {}, layers: [{id: 'bg', type: 'background', paint: {'background-color': '#e9edf1'}}]}; toast(t('err_style'), 7000); }
+  if (typeof maplibregl === 'undefined') { toast(t('loading'), 20000); try { await window.__mlReady; } catch (e) {} $('#toast').classList.remove('on'); }
+  if (typeof maplibregl === 'undefined') { DIAG.lastErr = 'maplibre lib'; toast(t('err_map'), 9000); return; }
+  try { await loadBase(); } catch (e) { DIAG.lastErr = (e && e.message) || 'style'; baseStyle = JSON.parse(JSON.stringify(FALLBACK_STYLE)); extr = []; DIAG.fb = true; DIAG.style = 'raster'; toast(t('map_slow'), 7000); retryT = setTimeout(retryVector, 10000); }
   lastDark = isDark();
-  map = new maplibregl.Map({container: 'map', style: buildStyle(baseStyle), center: [30.3141, 59.9386], zoom: 15, pitch: S.d3 ? 60 : 0, bearing: -17, maxPitch: 75, attributionControl: {compact: true}, fadeDuration: 150});
+  const mo = {container: 'map', style: buildStyle(baseStyle), center: [30.3141, 59.9386], zoom: 15, pitch: (S.d3 && !S.perf) ? 60 : 0, bearing: -17, maxPitch: 75, attributionControl: {compact: true}, fadeDuration: S.perf ? 0 : 150};
+  if (S.perf) mo.pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+  try { map = new maplibregl.Map(mo); } catch (e) { DIAG.lastErr = (e && e.message) || 'webgl'; toast(t('err_map'), 9000); return; }
+  map.on('sourcedata', e => { if (e.tile) DIAG.tiles++; });
+  map.on('error', e => { DIAG.errs++; DIAG.lastErr = (e && e.error && e.error.message) || DIAG.lastErr; });
+  setTimeout(() => { if (map && map.areTilesLoaded && !DIAG.tiles && !DIAG.fb) useFallback(t('map_slow')); }, 22000);
   map.on('style.load', onStyleLoad);
   map.on('rotate', updCompass); map.on('pitch', updCompass);
   map.on('dragstart', e => { if (nav && e.originalEvent) follow = false; });
@@ -525,9 +612,12 @@ function onStyleLoad() {
   map.addLayer({id: 'route-passed', type: 'line', source: 'route', filter: fl('passed'), layout: rnd, paint: {'line-color': '#98a2b3', 'line-width': 6, 'line-opacity': .85}});
   map.addLayer({id: 'route-case', type: 'line', source: 'route', filter: fl('main'), layout: rnd, paint: {'line-color': '#ffffff', 'line-width': 11, 'line-opacity': .95}});
   map.addLayer({id: 'route-main', type: 'line', source: 'route', filter: fl('main'), layout: rnd, paint: {'line-color': ['coalesce', ['get', 'color'], S.accent], 'line-width': 6.5}});
+  map.addLayer({id: 'route-toll', type: 'line', source: 'route', filter: fl('toll'), layout: rnd, paint: {'line-color': '#f59e0b', 'line-width': 6.5}});
   map.addLayer({id: 'route-walk', type: 'line', source: 'route', filter: fl('walk'), layout: {'line-join': 'round'}, paint: {'line-color': ['coalesce', ['get', 'color'], '#475569'], 'line-width': 4.5, 'line-dasharray': [1, 1.6]}});
   map.addLayer({id: 'pts', type: 'circle', source: 'pts', paint: {'circle-radius': ['coalesce', ['get', 'r'], 5.5], 'circle-color': '#ffffff', 'circle-stroke-width': 3, 'circle-stroke-color': ['coalesce', ['get', 'color'], S.accent]}});
   if (!map.getSource('trees')) map.addSource('trees', {type: 'geojson', data: fc([])});
+  if (!map.getSource('cams')) map.addSource('cams', {type: 'geojson', data: fc(G.cams || [])});
+  map.addLayer({id: 'cams', type: 'circle', source: 'cams', paint: {'circle-radius': 7, 'circle-color': '#f97316', 'circle-stroke-width': 2.5, 'circle-stroke-color': '#ffffff'}});
   map.addLayer({id: 'trees3d', type: 'fill-extrusion', source: 'trees', minzoom: 15.6, paint: {'fill-extrusion-color': ['get', 'c'], 'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-base': ['get', 'b'], 'fill-extrusion-opacity': 1, 'fill-extrusion-vertical-gradient': true}}, 'acc-fill');
   lastTree = null; map.once('idle', refreshTrees);
   drawAcc();
@@ -542,7 +632,7 @@ function setTrees(f) { const s = map && map.getSource && map.getSource('trees');
 function refreshTrees() {
   if (!map || !map.getSource || !map.getSource('trees')) return;
   const z = map.getZoom(), c = map.getCenter();
-  if (!S.d3 || !S.trees || S.sat || z < 15.8) { if (lastTree) { lastTree = null; setTrees([]); } return; }
+  if (!S.d3 || !S.trees || S.perf || S.sat || z < 15.8) { if (lastTree) { lastTree = null; setTrees([]); } return; }
   if (lastTree && Math.abs(lastTree.z - z) < .3 && hav(lastTree.lat, lastTree.lon, c.lat, c.lng) < 70) return;
   const ids = map.getStyle().layers.filter(l => l.type === 'fill' && /wood|forest|park|garden|grass|meadow|village_green|recreation/.test(l.id) && !/parking/.test(l.id)).map(l => ({id: l.id, wood: /wood|forest/.test(l.id), grass: /grass|meadow/.test(l.id)}));
   if (!ids.length) return;
@@ -576,7 +666,7 @@ const ptf = (c, props) => ({type: 'Feature', properties: props || {}, geometry: 
 function fitTo(coords, pad) { if (!map || !coords.length) return; const b = new maplibregl.LngLatBounds(); coords.forEach(c => b.extend(c)); const h = innerHeight; map.fitBounds(b, Object.assign({padding: {top: 190, bottom: Math.round(h * .42), left: 40, right: 40}, maxZoom: 17, duration: 900}, pad || {})); }
 function set3D(on) {
   S.d3 = on; save(); $('#viewBtn').textContent = on ? '3D' : '2D';
-  if (map) { extr.forEach(e => { try { map.setPaintProperty(e.id, 'fill-extrusion-height', on ? e.h : 0); map.setPaintProperty(e.id, 'fill-extrusion-base', on ? e.b : 0); } catch (err) {} }); map.easeTo({pitch: on ? 60 : 0, duration: 600}); }
+  if (map) { extr.forEach(e => { try { map.setPaintProperty(e.id, 'fill-extrusion-height', on ? e.h : 0); map.setPaintProperty(e.id, 'fill-extrusion-base', on ? e.b : 0); } catch (err) {} }); map.easeTo({pitch: on ? 60 : 0, duration: S.perf ? 0 : 600}); }
   const c = $('#set-d3'); if (c) c.checked = on; lastTree = null; scheduleTrees();
 }
 function setSat(on) { S.sat = on; save(); $('#satBtn').style.color = on ? '#fff' : ''; $('#satBtn').style.background = on ? 'var(--accent)' : ''; rebuildStyle(); const c = $('#set-sat'); if (c) c.checked = on; }
@@ -601,6 +691,7 @@ function applyTheme() {
   if (map && baseStyle && !S.sat && lastDark !== dark) rebuildStyle();
   lastDark = dark; paintAccent(); if (me) placeMe();
 }
+setInterval(() => { if (S.autoDN && isDark() !== lastDark) applyTheme(); }, 60000);
 matchMedia('(prefers-color-scheme: dark)').addEventListener && matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (S.theme === 'auto') applyTheme(); });
 
 /* ================= стрелка местоположения ================= */
@@ -632,22 +723,31 @@ function drawAcc() {
   for (let i = 0; i <= 48; i++) { const a = i / 48 * 2 * Math.PI; pts.push([me.lon + r * Math.sin(a) / k, me.lat + r * Math.cos(a) / 110540]); }
   setG('acc', [{type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: [pts]}}]);
 }
+let geoWatch = null, geoErrAt = 0;
 function startGeo() {
   if (!navigator.geolocation) { toast(t('err_geo_na')); return; }
-  navigator.geolocation.watchPosition(onGps, () => { toast(t('err_geo_denied'), 6000); updateFromPill(); }, {enableHighAccuracy: true, maximumAge: 1000, timeout: 25000});
+  if (geoWatch != null) return;
+  /* быстрый грубый фикс (сеть/кэш) — чтобы точка появилась сразу, затем её уточняет GPS */
+  try { navigator.geolocation.getCurrentPosition(p => { if (!me) onGps(p); }, () => {}, {enableHighAccuracy: false, maximumAge: 600000, timeout: 8000}); } catch (e) {}
+  geoWatch = navigator.geolocation.watchPosition(onGps, err => {
+    DIAG.geo = 'err' + (err && err.code); if (Date.now() - geoErrAt < 15000) return; geoErrAt = Date.now();
+    toast(err && err.code === 1 ? t('err_geo_denied') : t('geo_weak'), 6000); updateFromPill();
+  }, {enableHighAccuracy: true, maximumAge: 2000, timeout: 20000});
 }
+let lastGpsApply = 0;
 function onGps(p) {
   if (sim) return;
+  if (!nav && me && Date.now() - lastGpsApply < 350) return; lastGpsApply = Date.now();
   const c = p.coords, acc = Math.max(c.accuracy || 50, 4), now = p.timestamp || Date.now();
   if (!kf) { kf = {lat: c.latitude, lon: c.longitude, v: acc * acc, t: now}; if (acc > 800 && !accWarned) { accWarned = true; toast(t('warn_acc', Math.round(acc)), 9000); } }
   else {
     if (acc > 300 && kf.v < acc * acc && now - kf.t < 20000) return;
-    const dt = Math.max(0, (now - kf.t) / 1000); kf.v += dt * 9;
+    const dt = Math.max(0, (now - kf.t) / 1000), vv = (lastRaw && lastRaw.sp) || 0; kf.v += dt * (9 + vv * vv * 2);
     const K = kf.v / (kf.v + acc * acc); kf.lat += K * (c.latitude - kf.lat); kf.lon += K * (c.longitude - kf.lon); kf.v = (1 - K) * kf.v; kf.t = now;
   }
   let sp = (c.speed != null && !isNaN(c.speed)) ? c.speed : null;
   if (sp == null && lastRaw) { const dt = (now - lastRaw.t) / 1000; if (dt > 0.5 && dt < 10) sp = hav(lastRaw.lat, lastRaw.lon, kf.lat, kf.lon) / dt; }
-  lastRaw = {lat: kf.lat, lon: kf.lon, t: now};
+  lastRaw = {lat: kf.lat, lon: kf.lon, t: now, sp: sp || 0}; DIAG.geo = Math.round(acc) + ' m';
   let h = (sp != null && sp > 1 && typeof c.heading === 'number' && !isNaN(c.heading)) ? c.heading : null;
   if (h == null && prevPos && hav(prevPos.lat, prevPos.lon, kf.lat, kf.lon) > 8) h = brg(prevPos, {lat: kf.lat, lon: kf.lon});
   if (!prevPos || hav(prevPos.lat, prevPos.lon, kf.lat, kf.lon) > 8) prevPos = {lat: kf.lat, lon: kf.lon};
@@ -773,8 +873,8 @@ $('#pickOk').onclick = () => { if (!mapPick || !map) return; const c = map.getCe
 function applyPick(lat, lon, name, rec) {
   if (rec !== false) addHist({name, lat, lon});
   if (pickFor === 'from') setOrigin(lat, lon, name);
-  else if (pickFor === 'home') { S.home = {name, lat, lon}; save(); tab('favs'); }
-  else if (pickFor === 'work') { S.work = {name, lat, lon}; save(); tab('favs'); }
+  else if (pickFor === 'home') { S.home = {name, lat, lon}; save(); renderQuick(); tab('favs'); }
+  else if (pickFor === 'work') { S.work = {name, lat, lon}; save(); renderQuick(); tab('favs'); }
   else if (pickFor === 'via') { VIA.push({name, lat, lon}); pickFor = 'to'; tab('nav'); if (dest) buildRoute(); }
   else setDest(lat, lon, name);
 }
@@ -832,6 +932,7 @@ async function openPoiAt(pt, tapF) {
     if (layers.length) { const hits = map.queryRenderedFeatures([[pt[0] - 16, pt[1] - 16], [pt[0] + 16, pt[1] + 16]], {layers}).filter(h => h.properties && (h.properties.name || h.properties['name:latin'])); f = hits[0] || null; }
   } catch (e) {}
   const p = f ? f.properties : null, g = f && f.geometry && f.geometry.type === 'Point' ? f.geometry.coordinates : null;
+  $('#poi').classList.remove('smin');
   poiState = {lat: g ? g[1] : ll.lat, lon: g ? g[0] : ll.lng, name: p ? (p.name || p['name:latin']) : '', cat: p ? catInfo(p.subclass, p.class) : null, addr: '', loading: true};
   if (poiMarker) poiMarker.remove();
   poiMarker = new maplibregl.Marker({element: mkPin('y'), anchor: 'bottom'}).setLngLat([poiState.lon, poiState.lat]).addTo(map);
@@ -848,7 +949,7 @@ function favIdx(lat, lon) { return S.favs.findIndex(f => hav(f.lat, f.lon, lat, 
 function renderPoi() {
   const s = poiState, el = $('#poi'); if (!s) { el.classList.remove('on'); return; }
   const fav = favIdx(s.lat, s.lon) >= 0;
-  el.innerHTML = `<div class="grab"></div><div class="rhead"><div style="min-width:0"><div class="big">${esc(s.name || t('loading'))}</div><div class="sub">${s.cat ? s.cat.ic + ' ' + esc(s.cat.label) : ''}${s.loading ? ' · ' + t('loading') : ''}</div></div><button class="x" id="poiX">×</button></div>
+  el.innerHTML = `<div class="grab"></div><div class="rhead"><div style="min-width:0"><div class="big">${esc(s.name || t('loading'))}</div><div class="sub">${s.cat ? s.cat.ic + ' ' + esc(s.cat.label) : ''}${s.loading ? ' · ' + t('loading') : ''}</div></div><div class="row" style="flex:none"><button class="x mn" aria-label="min"></button><button class="x" id="poiX">×</button></div></div>
   ${s.addr ? `<div class="sub" style="margin-bottom:6px">📍 ${esc(s.addr)}</div>` : ''}
   <div class="opt"><button class="btn" id="poiTo">🏁 ${t('go_here')}</button><button class="btn ghost" id="poiFrom">🟢 ${t('from_here')}</button></div>
   <div class="opt"><button class="btn ghost" id="poiFav">${fav ? '★ ' + t('fav_remove') : '☆ ' + t('fav_add')}</button><button class="btn ghost" id="poiShare" style="flex:0 0 52px">📤</button></div>`;
@@ -859,7 +960,7 @@ function renderPoi() {
   $('#poiFav').onclick = () => { const p = poiState, i = favIdx(p.lat, p.lon); if (i >= 0) S.favs.splice(i, 1); else S.favs.unshift({name: p.name, cat: p.cat ? p.cat.label : '', ic: p.cat ? p.cat.ic : '📍', lat: p.lat, lon: p.lon, addr: p.addr}); save(); renderPoi(); toast(i >= 0 ? t('fav_removed') : t('fav_added')); };
   $('#poiShare').onclick = () => shareLoc(s);
 }
-function closePoi() { poiState = null; $('#poi').classList.remove('on'); if (poiMarker) { poiMarker.remove(); poiMarker = null; } }
+function closePoi() { poiState = null; $('#poi').classList.remove('on', 'smin'); if (poiMarker) { poiMarker.remove(); poiMarker = null; } }
 async function shareLoc(s) {
   const url = `https://www.openstreetmap.org/?mlat=${s.lat.toFixed(6)}&mlon=${s.lon.toFixed(6)}#map=18/${s.lat.toFixed(6)}/${s.lon.toFixed(6)}`;
   try { if (navigator.share) await navigator.share({title: s.name || 'Nova Navigator', text: s.name || '', url}); else { await navigator.clipboard.writeText(url); toast(t('copied')); } } catch (e) {}
@@ -874,12 +975,14 @@ const VEH = {
 const LO_BBOX = [58.4, 27.8, 61.8, 36.0];
 const sname = (n, en) => (S.lang === 'en' && en) ? en : n;
 
+const parseIv = v => { if (!v) return 0; v = String(v); let m; if (/^\d+$/.test(v)) return +v; if (m = v.match(/^(\d+):(\d+)/)) return (+m[1]) * 60 + (+m[2]); return 0; };
 function parseRels(j) {
-  const nodes = new Map(); (j.elements || []).forEach(e => { if (e.type === 'node') nodes.set(e.id, e); });
+  const nodes = new Map(); (j.elements || []).forEach(e => { if (e.type === 'node') nodes.set(e.id, e); else if (e.type === 'way' && e.center) nodes.set('w' + e.id, {lat: e.center.lat, lon: e.center.lon, tags: e.tags || {}}); });
   const out = [];
   for (const r of j.elements || []) {
     if (r.type !== 'relation') continue; const tg = r.tags || {};
-    const mem = (r.members || []).filter(m => m.type === 'node' && nodes.has(m.ref));
+    const nref = m => m.type === 'way' ? 'w' + m.ref : m.ref;
+    const mem = (r.members || []).filter(m => (m.type === 'node' || (m.type === 'way' && /^(stop|platform)/.test(m.role || ''))) && nodes.has(nref(m))).map(m => Object.assign({}, m, {ref: nref(m)}));
     let sel = mem.filter(m => /^stop/.test(m.role)); if (sel.length < 2) sel = mem.filter(m => /^platform/.test(m.role)); if (sel.length < 2) sel = mem;
     const stops = []; let last = null;
     for (const m of sel) {
@@ -887,32 +990,34 @@ function parseRels(j) {
       if (pv && hav(pv.la, pv.lo, n.lat, n.lon) < 35 && (!nm || pv.n === nm)) continue; stops.push({n: nm, la: n.lat, lo: n.lon});
     }
     if (stops.length < 2) continue;
-    out.push({id: r.id, type: tg.route, ref: tg.ref || '', name: tg.name || '', from: tg.from || '', to: tg.to || '', col: tg.colour || '', svc: tg.service || '', stops});
+    out.push({id: r.id, type: tg.route, ref: tg.ref || '', name: tg.name || '', from: tg.from || '', to: tg.to || '', col: tg.colour || '', svc: tg.service || '', iv: parseIv(tg.interval || tg['interval:conditional']), stops});
   }
   return out;
 }
 const RTYPE = {s: '[route~"^(bus|trolleybus|tram|share_taxi)$"]', t: '[route~"^(train|light_rail)$"]'};
 const stopsAround = (p, R, kind) => { const a = `${p.lat.toFixed(5)},${p.lon.toFixed(5)}`; return kind === 't'
-  ? `node(around:${R},${a})[railway=station];node(around:${R},${a})[railway=halt];node(around:${R},${a})[railway=stop];node(around:${R},${a})[public_transport=stop_position][train=yes];node(around:${R},${a})[public_transport=platform][train=yes];`
+  ? `node(around:${R},${a})[railway=station];node(around:${R},${a})[railway=halt];node(around:${R},${a})[railway=stop];node(around:${R},${a})[public_transport=stop_position][train=yes];node(around:${R},${a})[public_transport=stop_position][railway];node(around:${R},${a})[public_transport=station][train=yes];node(around:${R},${a})[public_transport=platform][train=yes];node(around:${R},${a})[public_transport=platform][railway];way(around:${R},${a})[railway=platform];`
   : `node(around:${R},${a})[highway=bus_stop];node(around:${R},${a})[railway=tram_stop];node(around:${R},${a})[public_transport=platform];`; };
 const _inflight = new Map();
 /* один запрос: маршруты, которые проходят рядом и с точками A, и с точками B (пересечение множеств на сервере), сразу с остановками */
 function fetchRels(A, B, kind, R) {
-  const rd = p => p.lat.toFixed(3) + ',' + p.lon.toFixed(3), key = `rf4|${kind}|${R}|${A.map(rd).join(';')}|${B.map(rd).join(';')}`;
+  const rd = p => p.lat.toFixed(3) + ',' + p.lon.toFixed(3), key = `rf5|${kind}|${R}|${A.map(rd).join(';')}|${B.map(rd).join(';')}`;
   if (_inflight.has(key)) return _inflight.get(key);
   const pr = (async () => {
     const c = await kv.get(key); if (c && Date.now() - c.ts < 2 * 864e5) return c.rels;
-    const q = `[out:json][timeout:30];(${A.map(p => stopsAround(p, R, kind)).join('')})->.sa;(${B.map(p => stopsAround(p, R, kind)).join('')})->.sb;rel(bn.sa)${RTYPE[kind]}->.ra;rel(bn.sb)${RTYPE[kind]}->.rb;rel.ra.rb->.c;.c out body;node(r.c);out body qt;`;
-    const rels = parseRels(await lim(() => overpass(q, 30000)));
+    const q = kind === 't'
+      ? `[out:json][timeout:40];(${A.map(p => stopsAround(p, R, kind)).join('')})->.sa;(${B.map(p => stopsAround(p, R, kind)).join('')})->.sb;(rel(bn.sa)${RTYPE[kind]};rel(bw.sa)${RTYPE[kind]};)->.ra;(rel(bn.sb)${RTYPE[kind]};rel(bw.sb)${RTYPE[kind]};)->.rb;rel.ra.rb->.c;.c out body;node(r.c);out body qt;way(r.c)[railway=platform];out center qt;`
+      : `[out:json][timeout:30];(${A.map(p => stopsAround(p, R, kind)).join('')})->.sa;(${B.map(p => stopsAround(p, R, kind)).join('')})->.sb;rel(bn.sa)${RTYPE[kind]}->.ra;rel(bn.sb)${RTYPE[kind]}->.rb;rel.ra.rb->.c;.c out body;node(r.c);out body qt;`;
+    const rels = parseRels(await lim(() => overpass(q, kind === 't' ? 40000 : 30000)));
     kv.set(key, {ts: Date.now(), rels}); return rels;
   })();
   _inflight.set(key, pr); pr.then(() => _inflight.delete(key), () => _inflight.delete(key)); return pr;
 }
 function isCommuter(r) {
   if (/long_distance|high_speed|night|international/.test(r.svc)) return false;
-  if (/Москва|Moscow|Мурманск|Петрозаводск/i.test(r.name + r.to + r.from)) return false;
+  if (/Москва|Moscow|Мурманск|Петрозаводск|Великий Новгород|Псков|Таллин/i.test(r.name + r.to + r.from)) return false;
   const inb = r.stops.filter(s => s.la >= LO_BBOX[0] && s.la <= LO_BBOX[2] && s.lo >= LO_BBOX[1] && s.lo <= LO_BBOX[3]).length;
-  return inb >= r.stops.length * .9;
+  return inb >= r.stops.length * .6;
 }
 function matchRels(A, B, o, d, Rs) {
   const mb = new Map(B.map(r => [r.id, r])), out = [];
@@ -935,7 +1040,7 @@ function rideOption(m, o, d) {
   let len = 0; for (let i = 1; i < coords.length; i++) len += hav(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
   const sa = r.stops[m.ia], sb = r.stops[m.ib], legs = [];
   if (m.da > 30) legs.push(walkLeg(o, {lat: sa.la, lon: sa.lo}, sa.n));
-  legs.push({type: r.type, ref: r.ref || r.name, color: r.col || V.col, coords, dist: len, min: len / V.sp, wait: V.wait, relId: r.id, from: sa.n, to: sb.n, n: m.ib - m.ia, dirTo: r.to || r.stops[r.stops.length - 1].n, stops: seg});
+  legs.push({type: r.type, ref: r.ref || r.name, color: r.col || V.col, coords, dist: len, min: len / V.sp, wait: r.iv ? Math.min(30, Math.max(2, r.iv / 2)) : V.wait, iv: r.iv || 0, relId: r.id, from: sa.n, to: sb.n, n: m.ib - m.ia, dirTo: r.to || r.stops[r.stops.length - 1].n, stops: seg});
   if (m.db > 30) legs.push(walkLeg({lat: sb.la, lon: sb.lo}, d, ''));
   return finish({id: 'r' + r.id + '_' + m.ia + '_' + m.ib, kind: 'transit', mode: 'transit', legs});
 }
@@ -945,7 +1050,28 @@ function bestRides(Rl, o, d, kind, Rs) {
   ms.forEach(m => { const op = rideOption(m, o, d), k = m.r.type + '|' + (m.r.ref || m.r.name); if (!best.has(k) || best.get(k).min > op.min) best.set(k, op); });
   return [...best.values()].sort((a, b) => a.min - b.min);
 }
-async function transitRides(o, d, kind) { const R = kind === 't' ? 2500 : 550; return bestRides(await fetchRels([o], [d], kind, R), o, d, kind, R).slice(0, 8); }
+/* до станции/от станции на метро, если так быстрее, чем пешком */
+function metroAccess(M, a, b, wl) {
+  const res = planMetro(M, a, b, 1500); if (!res) return null; const legs = metroLegs(M, res, a, b); if (!legs.some(l => l.type === 'subway')) return null;
+  const mins = legs.reduce((x, L) => x + (L.min || 0) + (L.wait || 0), 0); return mins + 2 < wl.min * .8 ? legs : null;
+}
+async function transitRides(o, d, kind) {
+  const R = kind === 't' ? 4500 : 550, list = bestRides(await fetchRels([o], [d], kind, R), o, d, kind, R).slice(0, 8);
+  if (kind === 't' && list.length) {
+    let M = null; try { M = await loadMetro(); } catch (e) {}
+    if (M) list.forEach(op => {
+      try {
+        const L0 = op.legs[0], rd = op.legs.find(L => L.type !== 'walk'); let ch = false;
+        if (L0.type === 'walk' && L0.dist > 900 && rd) { const lg = metroAccess(M, {lat: o.lat, lon: o.lon}, {lat: rd.coords[0][1], lon: rd.coords[0][0]}, L0); if (lg) { op.legs.splice(0, 1, ...lg); ch = true; } }
+        const Ln = op.legs[op.legs.length - 1], rl = op.legs.filter(L => L.type !== 'walk').pop();
+        if (Ln.type === 'walk' && Ln.dist > 900 && rl && rl !== Ln) { const c = rl.coords[rl.coords.length - 1], lg = metroAccess(M, {lat: c[1], lon: c[0]}, {lat: d.lat, lon: d.lon}, Ln); if (lg) { op.legs.splice(op.legs.length - 1, 1, ...lg); ch = true; } }
+        if (ch) { finish(op); op.id += '_m'; }
+      } catch (e) {}
+    });
+    list.sort((a, b) => (a.score || a.min) - (b.score || b.min));
+  }
+  return list;
+}
 /* комбинированные маршруты: наземный транспорт до метро → метро → наземный/пешком */
 async function comboOptions(o, d) {
   const M = await loadMetro(), sp = i => ({lat: M.st[i].lat, lon: M.st[i].lon}), direct = hav(o.lat, o.lon, d.lat, d.lon); if (direct < 1800) return [];
@@ -1100,13 +1226,60 @@ async function osrmOptions(o, d, mode, vias = []) {
   if (!j.routes || !j.routes.length) throw new Error(t('err_noroute'));
   let rts = j.routes.slice(0, 3);
   if (jf && jf.routes && jf.routes[0]) { const f = jf.routes[0]; if (!rts.some(r => Math.abs(r.distance - f.distance) < 40)) rts.push(f); }
-  const isToll = rt => rt.legs.some(l => (l.steps || []).some(st => (st.intersections || []).some(x => (x.classes || []).includes('toll'))));
-  return rts.slice(0, 4).map((rt, i) => {
-    const steps = []; rt.legs.forEach((lg, k) => (lg.steps || []).forEach((st, si, arr) => { st = Object.assign({}, st); if (k > 0 && si === 0) st.skip = true; if (k < rt.legs.length - 1 && si === arr.length - 1 && vias[k]) st.viaName = vias[k].name; steps.push(st); }));
+  return rts.slice(0, 4).map((rt, i) => mkOsrmOpt(rt, i, mode, vias));
+}
+const stepToll = st => (st.intersections || []).some(x => (x.classes || []).includes('toll'));
+/* платные участки: геометрия для карты + расстояния вдоль маршрута для предупреждений */
+function tollInfo(rt) {
+  const segs = [], along = []; let cum = 0, km = 0;
+  rt.legs.forEach(lg => (lg.steps || []).forEach(st => { const d = st.distance || 0; if (stepToll(st) && st.geometry && st.geometry.coordinates && st.geometry.coordinates.length > 1) { segs.push(st.geometry.coordinates); along.push([cum, cum + d]); km += d; } cum += d; }));
+  return {segs, along, km: km / 1000, any: segs.length > 0 || rt.legs.some(l => (l.steps || []).some(stepToll)), k: rt.distance ? 1 : 0};
+}
+function mkOsrmOpt(rt, i, mode, vias, idp) {
+  {
+    const steps = []; rt.legs.forEach((lg, k) => (lg.steps || []).forEach((st, si, arr) => { st = Object.assign({}, st); if (k > 0 && si === 0) st.skip = true; if (k < rt.legs.length - 1 && si === arr.length - 1 && vias[k]) { if (vias[k].synth) st.skip = true; else st.viaName = vias[k].name; } steps.push(st); }));
     const min = mode === 'car' ? rt.duration / 60 : rt.distance / SPD[mode];
-    const opt = {id: mode + i + '_' + Math.round(rt.distance), kind: 'osrm', mode, min, toll: mode === 'car' && isToll(rt), legs: [{type: mode, coords: rt.geometry.coordinates, min, ref: '', color: null}], steps};
-    rebuild(opt); opt.dist = rt.distance; opt.man = buildMan(opt); opt.via = [...new Set(steps.map(s => s.name).filter(Boolean))].slice(0, 3); return opt;
-  });
+    const ti = mode === 'car' ? tollInfo(rt) : {segs: [], along: [], km: 0, any: false};
+    const opt = {id: (idp || '') + mode + i + '_' + Math.round(rt.distance), kind: 'osrm', mode, min, toll: ti.any, tollKm: ti.km, tollSegs: ti.segs, legs: [{type: mode, coords: rt.geometry.coordinates, min, ref: '', color: null}], steps};
+    rebuild(opt); opt.dist = rt.distance; const kk = opt.total / (rt.distance || 1); opt.tollAlong = ti.along.map(a => [a[0] * kk, a[1] * kk]);
+    opt.man = buildMan(opt); opt.via = [...new Set(steps.map(s => s.name).filter(Boolean))].slice(0, 3); return opt;
+  }
+}
+
+/* платные трассы вдоль коридора: варианты «через платную дорогу» (М11, ЗСД, ШМСД и любые другие с toll=yes) */
+async function tollOptions(o, d) {
+  const direct = hav(o.lat, o.lon, d.lat, d.lon); if (direct < 8000 || direct > 600000) return [];
+  const pad = Math.max(.05, Math.min(.6, direct / 111000 * .35)), s0 = Math.min(o.lat, d.lat) - pad, n0 = Math.max(o.lat, d.lat) + pad, w0 = Math.min(o.lon, d.lon) - pad * 2, e0 = Math.max(o.lon, d.lon) + pad * 2;
+  const bb = [s0, w0, n0, e0].map(x => x.toFixed(3)).join(','), key = 'tw1|' + bb, c = await kv.get(key); let els = c && Date.now() - c.ts < 7 * 864e5 ? c.els : null;
+  if (!els) {
+    const j = await lim(() => overpass(`[out:json][timeout:30];way[toll=yes][highway~"^(motorway|trunk|primary|secondary|motorway_link)$"](${bb});out center 200;`, 30000));
+    els = (j.elements || []).filter(x => x.center).map(x => ({lat: x.center.lat, lon: x.center.lon, ref: (x.tags && (x.tags.ref || x.tags.name)) || ''})); kv.set(key, {ts: Date.now(), els});
+  }
+  const byRef = new Map();
+  els.forEach(x => { const dv = hav(o.lat, o.lon, x.lat, x.lon) + hav(x.lat, x.lon, d.lat, d.lon) - direct; if (dv > Math.max(direct * .6, 12000)) return; const k = x.ref || 'toll'; if (!byRef.has(k) || byRef.get(k).dv > dv) byRef.set(k, Object.assign({dv}, x)); });
+  const cand = [...byRef.values()].sort((a, b) => a.dv - b.dv).slice(0, 2), out = [];
+  for (let i = 0; i < cand.length; i++) {
+    const cd = cand[i];
+    try {
+      const u = `https://routing.openstreetmap.de/${OSRM.car}/${o.lon},${o.lat};${cd.lon},${cd.lat};${d.lon},${d.lat}?overview=full&geometries=geojson&steps=true&alternatives=false`, j = await fj(u, {ms: 15000});
+      const rt = j.routes && j.routes[0]; if (!rt) continue; const op = mkOsrmOpt(rt, i, 'car', [{synth: true}], 'tl' + i + '_');
+      if (!op.toll) continue; const known = RT.opts.filter(x => x.kind === 'osrm').map(x => x.min); if (known.length && op.min > Math.min(...known) * 1.8 + 10) continue;
+      op.tollRef = cd.ref; out.push(op);
+    } catch (e) {}
+  }
+  return out;
+}
+/* камеры контроля скорости вдоль маршрута */
+async function camsAlong(opt) {
+  let a = 1e9, b = -1e9, d = 1e9, e = -1e9; opt.coords.forEach(p => { a = Math.min(a, p[1]); b = Math.max(b, p[1]); d = Math.min(d, p[0]); e = Math.max(e, p[0]); });
+  if (b - a > 5 || e - d > 8) return [];
+  const bb = [a - .003, d - .005, b + .003, e + .005].map(x => x.toFixed(3)).join(','), key = 'cam1|' + bb, c = await kv.get(key); let els = c && Date.now() - c.ts < 3 * 864e5 ? c.els : null;
+  if (!els) {
+    const j = await lim(() => overpass(`[out:json][timeout:30];(node[highway=speed_camera](${bb});node[enforcement=maxspeed](${bb}););out 800;`, 30000));
+    els = (j.elements || []).filter(x => x.type === 'node').map(x => ({lat: x.lat, lon: x.lon, max: parseMax(x.tags && x.tags.maxspeed)})); kv.set(key, {ts: Date.now(), els});
+  }
+  const out = []; els.forEach(x => { const n = nearestOn(opt.coords, opt.cum, x.lat, x.lon); if (n.d < 45) out.push({lat: x.lat, lon: x.lon, max: x.max, along: n.along}); });
+  return out.sort((p, q) => p.along - q.along);
 }
 
 /* ================= уточнение геометрии транспорта ================= */
@@ -1149,11 +1322,13 @@ async function refineOption(opt) {
 /* ================= режимы ================= */
 const MODES = [['foot', '🚶', 'm_foot'], ['bike', '🚲', 'm_bike'], ['car', '🚗', 'm_car'], ['transit', '🚌', 'm_transit']];
 const MODE_IC = {foot: '🚶', bike: '🚲', car: '🚗', transit: '🚌'};
-function renderModes() { $('#modes').innerHTML = MODES.map(m => `<button data-m="${m[0]}" class="${S.mode === m[0] ? 'on' : ''}">${m[1]} ${t(m[2])}</button>`).join(''); }
+function renderModes() { $('#modes').innerHTML = MODES.map(m => `<button data-m="${m[0]}" class="${S.mode === m[0] ? 'on' : ''}">${m[1]} ${t(m[2])}</button>`).join(''); renderQuick(); }
+function renderQuick() { const el = $('#quick'); if (!el) return; el.innerHTML = [['home', '🏠', t('home')], ['work', '💼', t('work')]].map(([k, ic, l]) => `<button data-k="${k}">${ic} ${esc(S[k] ? l : l + ' · ' + t('quick_set'))}</button>`).join(''); }
+$('#quick').onclick = e => { const b = e.target.closest('button'); if (!b) return; const k = b.dataset.k, p = S[k]; if (p) { pickFor = 'to'; applyPick(p.lat, p.lon, p.name, false); } else openPicker(k); };
 $('#modes').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.mode = b.dataset.m; save(); renderModes(); if (dest) buildRoute(); };
 
 /* ================= построение маршрутов ================= */
-const RT = {on: false, opts: [], sel: null, notes: [], seq: 0, min: false, only: null, st: null};
+const RT = {on: false, opts: [], sel: null, notes: [], seq: 0, min: false, only: null, st: null, sortBy: 'fast'};
 let LINE = null, VIA = [];
 const curOpt = () => RT.opts.find(o => o.id === RT.sel) || null;
 function clearMarkers() { routeMarkers.forEach(m => m.remove()); routeMarkers = []; }
@@ -1167,7 +1342,10 @@ async function buildRoute(arg) {
   $('#mprompt').classList.remove('on'); LINE = null; clearRouteDraw(); RT.opts = []; RT.sel = null; RT.notes = []; RT.on = true; RT.min = false; RT.only = arg && arg.only || null; RT.st = arg && arg.st || null;
   const my = ++RT.seq, d = {lat: dest.lat, lon: dest.lon};
   const task = (key, label, fn) => { const n = {key, label, state: 'load', fn}; RT.notes.push(n); runTask(n, my); };
-  if (S.mode !== 'transit') task('osrm', t('m_' + S.mode), () => osrmOptions(o, d, S.mode, VIA.slice()));
+  if (S.mode !== 'transit') {
+    task('osrm', t('m_' + S.mode), () => osrmOptions(o, d, S.mode, VIA.slice()));
+    if (S.mode === 'car' && !VIA.length) task('tolls', t('t_tolls'), () => tollOptions(o, d).catch(() => []));
+  }
   else {
     if (!RT.only && hav(o.lat, o.lon, d.lat, d.lon) < 4000) task('walk', t('m_foot'), async () => { const a = await osrmOptions(o, d, 'foot'); a[0].id = 'walk'; return [a[0]]; });
     task('metro', t('t_metro'), async () => { const M = await loadMetro(); const op = metroOption(M, o, d, RT.st); return op ? [op] : []; });
@@ -1179,8 +1357,10 @@ function runTask(n, my) {
   n.state = 'load'; renderRoute();
   n.fn().then(arr => { if (my !== RT.seq) return; n.state = 'ok'; n.count = arr.length; addOpts(arr); }).catch(e => { if (my !== RT.seq) return; if (e && e.soft) { n.state = 'ok'; n.count = 0; renderRoute(); return; } n.state = 'err'; n.err = (e && e.message) || ''; renderRoute(); });
 }
+const nTr = o => o.legs ? Math.max(0, o.legs.filter(L => L.type !== 'walk').length - 1) : 0;
+const optKey = o => { const b = o.score || o.min; if (o.kind !== 'transit') return b; if (RT.sortBy === 'xfer') return nTr(o) * 1000 + b; if (RT.sortBy === 'walk') return (o.walk || 0) + b; return b; };
 function addOpts(arr) {
-  arr.forEach(x => { if (!RT.opts.find(y => y.id === x.id)) RT.opts.push(x); }); RT.opts.sort((a, b) => (a.score || a.min) - (b.score || b.min));
+  arr.forEach(x => { if (RT.opts.find(y => y.id === x.id)) return; if (x.kind === 'osrm' && x.mode === 'car' && RT.opts.some(y => y.kind === 'osrm' && y.mode === 'car' && Math.abs(y.dist - x.dist) < 250 && Math.abs(y.min - x.min) < 1.5)) return; RT.opts.push(x); }); RT.opts.sort((a, b) => optKey(a) - optKey(b));
   if (RT.sel == null && RT.opts.length) selectOpt(RT.opts[0].id); else { drawRoute(false); renderRoute(); }
 }
 function selectOpt(k) {
@@ -1199,6 +1379,10 @@ function drawRoute(fit) {
       const mid = L.coords[Math.floor(L.coords.length / 2)]; routeMarkers.push(new maplibregl.Marker({element: el}).setLngLat(mid).addTo(map));
     }
   });
+  if (sel && sel.tollSegs && sel.tollSegs.length) sel.tollSegs.forEach((c, i) => {
+    feats.push(feat(c, {k: 'toll'})); const ta = sel.tollAlong || [];
+    if (i === 0 || !ta[i] || ta[i][0] - ta[i - 1][1] > 80) { const el = document.createElement('div'); el.className = 'vb'; el.style.setProperty('--vc', '#b45309'); el.textContent = '💰 ' + t('toll'); routeMarkers.push(new maplibregl.Marker({element: el}).setLngLat(c[0]).addTo(map)); }
+  });
   if (sel && sel.kind === 'osrm') VIA.forEach((v, i) => { const el = document.createElement('div'); el.className = 'vb'; el.style.setProperty('--vc', '#8b5cf6'); el.textContent = '📍' + (i + 1); routeMarkers.push(new maplibregl.Marker({element: el}).setLngLat([v.lon, v.lat]).addTo(map)); });
   setG('route', feats); setG('pts', pts); if (fit && sel) fitTo(sel.coords);
 }
@@ -1206,44 +1390,90 @@ const legIcon = L => L.type === 'walk' ? '🚶' : (VEH[L.type] || {ic: MODE_IC[L
 function legTitle(L) {
   if (L.type === 'walk') return L.xfer ? L.toName : (L.toName ? t('walk_to', fmtD(L.dist), L.toName) : t('walk_d', fmtD(L.dist)));
   if (L.type === 'subway') return t('ride_metro', L.ref, L.from, L.to, L.n, L.dirTo || '—');
-  if (VEH[L.type]) return t('ride_veh', t('v_' + L.type), L.ref, L.from || t('stop'), L.n, L.to || t('stop'));
+  if (VEH[L.type]) return t('ride_veh', t('v_' + L.type), L.ref, L.from || t('stop'), L.n, L.to || t('stop')) + (L.iv ? ' · ' + t('every_n', L.iv) : '');
   return t('m_' + L.type);
 }
 function optChips(o) {
-  if (o.kind === 'osrm') return `<span class="badge" style="background:var(--muted)">${MODE_IC[o.mode]} ${o.id === 'walk' ? t('m_foot') : t('m_' + o.mode)}</span>${o.toll ? `<span class="badge toll">💰 ${t('toll')}</span>` : (o.mode === 'car' && RT.opts.some(x => x.toll) ? `<span class="badge free">🆓 ${t('nontoll')}</span>` : '')}${o.via && o.via.length ? `<span class="sub">${t('via')} ${esc(o.via[0])}</span>` : ''}`;
+  if (o.kind === 'osrm') return `<span class="badge" style="background:var(--muted)">${MODE_IC[o.mode]} ${o.id === 'walk' ? t('m_foot') : t('m_' + o.mode)}</span>${o.toll ? `<span class="badge toll">💰 ${t('toll')}${o.tollKm >= 1 ? ' · ' + Math.round(o.tollKm) + ' ' + t('u_km') : ''}</span>` : (o.mode === 'car' && RT.opts.some(x => x.toll) ? `<span class="badge free">🆓 ${t('nontoll')}</span>` : '')}${o.via && o.via.length ? `<span class="sub">${t('via')} ${esc(o.via[0])}</span>` : ''}`;
   return o.legs.map(L => L.type === 'walk' ? `<span class="sub">🚶${Math.max(1, Math.round(L.min))}</span>` : `<span class="badge" style="background:${esc(L.color || '#2563eb')}">${legIcon(L)} ${esc(L.ref || '')}</span>`).join('<span class="sub">›</span>');
 }
+const loc = () => S.lang === 'en' ? 'en-GB' : 'ru-RU';
+const hhmm = ms => new Date(ms).toLocaleTimeString(loc(), {hour: '2-digit', minute: '2-digit'});
 function renderRoute() {
   const el = $('#rsheet');
   if (LINE) { renderLine(); return; }
   if (!RT.on || nav) { el.classList.remove('on'); return; }
-  const sel = curOpt();
-  let h = `<div class="grab" id="rgrab"></div><div class="rhead"><div style="min-width:0"><div class="big">${sel ? fmtT(sel.min) + ' · ' + fmtD(sel.dist) : t('building')}</div><div class="sub">${esc(dest ? dest.name : '')}</div></div><button class="x" id="rx">×</button></div>`;
+  const sel = curOpt(), car = sel && sel.kind === 'osrm' && sel.mode === 'car', fuel = car ? Math.round(sel.dist / 1000 * S.fuelL / 100 * S.fuelP) : 0;
+  let h = `<div class="grab" id="rgrab"></div><div class="rhead"><div style="min-width:0"><div class="big">${sel ? fmtT(sel.min) + ' · ' + fmtD(sel.dist) : t('building')}</div><div class="sub">${esc(dest ? dest.name : '')}${sel ? ' · ' + t('arr_at', hhmm(Date.now() + sel.min * 60000)) : ''}${fuel > 0 ? ' · ' + t('fuel_cost', fuel) : ''}</div></div><div class="row" style="flex:none"><button class="x" id="rmin">${RT.min ? '▴' : '▾'}</button><button class="x" id="rx">×</button></div></div>`;
   if (!RT.min) {
     h += RT.notes.filter(n => n.state === 'load').map(n => `<div class="note"><i class="spin"></i>${esc(n.label)}…</div>`).join('');
     h += RT.notes.filter(n => n.state === 'err').map(n => `<div class="note">⚠️ ${esc(n.label)}: ${esc(n.err)} <a class="retry" data-retry="${n.key}">${t('retry')}</a></div>`).join('');
     const done = !RT.notes.some(n => n.state === 'load');
     if (done && !RT.opts.length && !RT.notes.some(n => n.state === 'err')) h += `<div class="empty">${t('no_routes')}</div>`;
+    if (S.mode === 'transit' && RT.opts.filter(o => o.kind === 'transit').length > 1) h += `<div class="chips" id="rfil" style="margin:6px 0 2px">${[['fast', 'f_fast'], ['xfer', 'f_xfer'], ['walk', 'f_walk']].map(([k, l]) => `<button data-f="${k}" class="${RT.sortBy === k ? 'on' : ''}">${t(l)}</button>`).join('')}</div>`;
     if (RT.opts.length > 1 || (sel && sel.kind === 'transit')) h += '<div class="opts">' + RT.opts.map((o, i) => `<div class="o ${o.id === RT.sel ? 'sel' : ''}" data-id="${esc(o.id)}" style="animation-delay:${i * 40}ms"><div class="ch">${optChips(o)}</div><div class="tm"><b>${fmtT(o.min)}</b><div class="sub">${o.kind === 'transit' ? '🚶 ' + fmtD(o.walk) : fmtD(o.dist)}</div></div></div>`).join('') + '</div>';
     if (done && RT.notes.some(n => n.key === 'surf' && n.state === 'ok') && S.mode === 'transit' && !RT.opts.some(o => o.legs.some(L => VEH[L.type] && L.type !== 'subway'))) h += `<div class="note">ℹ️ ${t('no_direct')}</div>`;
     if (S.mode !== 'transit' && !RT.only) h += `<div class="row" style="flex-wrap:wrap;margin:6px 0">${VIA.map((v, i) => `<span class="badge" style="background:#8b5cf6">📍${i + 1} ${esc(v.name)} <a data-vx="${i}" style="margin-left:4px">×</a></span>`).join('')}<button class="btn ghost" id="viaBtn" style="padding:6px 12px;flex:none">➕ ${t('via_add')}</button></div>`;
-    if (sel && sel.kind === 'osrm' && sel.toll) h += `<div class="note">💰 ${t('toll_note')}</div>`;
+    if (car) h += `<div class="chips" id="rext" style="margin:4px 0"><button data-x="fuel">⛽ ${t('btn_fuel')}</button><button data-x="charge">🔌 ${t('btn_chg')}</button><button data-x="park">🅿 ${t('btn_park')}</button></div>`;
+    if (sel && sel.kind === 'osrm' && sel.toll) h += `<div class="note">💰 ${t('toll_note')}${sel.tollKm >= 1 ? ' (' + Math.round(sel.tollKm) + ' ' + t('u_km') + ')' : ''}</div>`;
     if (sel) {
       h += '<div class="steps">';
-      if (sel.kind === 'transit') sel.legs.forEach(L => { h += `<div class="step"><div class="si">${legIcon(L)}</div><div><div>${esc(legTitle(L))}</div><div class="sub">${fmtT(L.min)}${L.wait ? ' · ' + t('wait_n', L.wait) : ''}</div></div></div>`; });
+      if (sel.kind === 'transit') sel.legs.forEach(L => { h += `<div class="step"><div class="si">${legIcon(L)}</div><div><div>${esc(legTitle(L))}</div><div class="sub">${fmtT(L.min)}${L.wait ? ' · ' + t('wait_n', Math.round(L.wait)) : ''}</div></div></div>`; });
       else (sel.man || []).slice(0, 14).forEach((m, i, a) => { h += `<div class="step"><div class="si">${m.ar}</div><div><div>${esc(m.txt)}</div><div class="sub">${fmtD(m.along - (i ? a[i - 1].along : 0))}</div></div></div>`; });
       h += '</div>';
     }
   }
-  h += `<div class="acts"><button class="btn" id="goBtn" ${sel ? '' : 'disabled style="opacity:.5"'}>▶ ${t('start')}</button><button class="btn ghost" id="simBtn" ${sel ? '' : 'disabled style="opacity:.5"'}>${t('demo')}</button><button class="btn ghost" id="shareRt" style="flex:0 0 46px" ${sel ? '' : 'disabled'}>📤</button></div>`;
+  h += `<div class="acts"><button class="btn" id="goBtn" ${sel ? '' : 'disabled style="opacity:.5"'}>▶ ${t('start')}</button><button class="btn ghost" id="simBtn" ${sel ? '' : 'disabled style="opacity:.5"'}>${t('demo')}</button><button class="btn ghost" id="saveRt" style="flex:0 0 46px" ${sel ? '' : 'disabled'}>💾</button><button class="btn ghost" id="shareRt" style="flex:0 0 46px" ${sel ? '' : 'disabled'}>📤</button></div>`;
   el.innerHTML = h; el.classList.add('on');
-  $('#rx').onclick = closeRoute; $('#rgrab').onclick = () => { RT.min = !RT.min; renderRoute(); };
+  $('#rx').onclick = closeRoute; $('#rgrab').onclick = $('#rmin').onclick = () => { RT.min = !RT.min; renderRoute(); };
   el.querySelectorAll('.o').forEach(x => x.onclick = () => selectOpt(x.dataset.id));
   el.querySelectorAll('[data-retry]').forEach(a => a.onclick = () => { const n = RT.notes.find(x => x.key === a.dataset.retry); if (n) runTask(n, RT.seq); });
+  el.querySelectorAll('#rfil button').forEach(b => b.onclick = () => { RT.sortBy = b.dataset.f; RT.opts.sort((a, c) => optKey(a) - optKey(c)); if (RT.opts[0]) selectOpt(RT.opts[0].id); else renderRoute(); });
+  el.querySelectorAll('#rext button').forEach(b => b.onclick = () => alongSearch(b.dataset.x));
   const vb = $('#viaBtn'); if (vb) vb.onclick = () => openPicker('via');
   el.querySelectorAll('[data-vx]').forEach(a => a.onclick = e => { e.stopPropagation(); VIA.splice(+a.dataset.vx, 1); buildRoute(); });
-  $('#shareRt').onclick = shareRoute;
+  $('#shareRt').onclick = shareRoute; $('#saveRt').onclick = saveRoute;
   $('#goBtn').onclick = () => startNav(false); $('#simBtn').onclick = () => startNav(true);
+}
+/* сохранённые маршруты и история поездок */
+const placeOf = p => p ? {lat: p.lat, lon: p.lon, name: p.name} : null;
+function saveRoute() {
+  const f = origin(), o = curOpt(); if (!f || !dest || !o) return;
+  const key = `${S.mode}|${f.lat.toFixed(4)},${f.lon.toFixed(4)}|${dest.lat.toFixed(4)},${dest.lon.toFixed(4)}`;
+  S.routes = [{key, ts: Date.now(), mode: S.mode, from: placeOf(f), to: placeOf(dest), via: VIA.map(placeOf), name: f.name + ' → ' + dest.name}].concat((S.routes || []).filter(r => r.key !== key)).slice(0, 30); save(); toast(t('route_saved'));
+}
+function addTrip(o) {
+  const f = origin(); if (!f || !dest) return;
+  S.trips = [{ts: Date.now(), mode: S.mode, from: placeOf(f), to: placeOf(dest), via: VIA.map(placeOf), dist: o.dist, min: o.min, name: f.name + ' → ' + dest.name}].concat(S.trips || []).slice(0, 30); save();
+}
+function openSaved(r) {
+  S.mode = r.mode; save(); renderModes(); VIA = (r.via || []).map(v => Object.assign({}, v));
+  if (r.from && r.from.name !== t('my_loc')) setOrigin(r.from.lat, r.from.lon, r.from.name, false); else clearOrigin(false);
+  setDest(r.to.lat, r.to.lon, r.to.name, false); VIA = (r.via || []).map(v => Object.assign({}, v)); buildRoute();
+}
+/* заправки / зарядки по пути, парковки у точки назначения */
+function openX(title, items, pick) {
+  const el = $('#xsheet'); document.body.classList.add('xon');
+  el.innerHTML = `<div class="grab"></div><div class="rhead"><div class="big" style="font-size:17px">${esc(title)}</div><div class="row" style="flex:none"><button class="x mn" aria-label="min"></button><button class="x" id="xx">×</button></div></div>` +
+    (items === null ? `<div class="note"><i class="spin"></i>${t('searching')}</div>` : items.length ? items.map((p, i) => `<div class="li" data-i="${i}" style="animation-delay:${Math.min(i, 8) * 30}ms"><div class="li-i">${p.ic}</div><div class="lt"><b>${esc(p.name)}</b><span class="sub">${esc(p.sub || '')}</span></div></div>`).join('') : `<div class="empty">${t('nothing')}</div>`);
+  el.classList.add('on'); $('#xx').onclick = closeX; el.onclick = e => { const x = e.target.closest('.li'); if (x && items && items[+x.dataset.i]) pick(items[+x.dataset.i]); };
+}
+function closeX() { $('#xsheet').classList.remove('on', 'smin'); document.body.classList.remove('xon'); }
+async function alongSearch(kind) {
+  const sel = curOpt(); if (!sel || !dest) return; const ic = {fuel: '⛽', charge: '🔌', park: '🅿'}[kind], title = ic + ' ' + {fuel: t('btn_fuel'), charge: t('btn_chg'), park: t('btn_park')}[kind];
+  openX(title, null, null);
+  try {
+    let area, filt;
+    if (kind === 'park') { area = `around:700,${dest.lat.toFixed(5)},${dest.lon.toFixed(5)}`; filt = '[amenity=parking]["access"!~"private|customers|permit"]'; }
+    else { const co = sel.coords, st = Math.max(1, Math.floor(co.length / 28)), pts = co.filter((_, i) => i % st === 0 || i === co.length - 1).map(p => p[1].toFixed(4) + ',' + p[0].toFixed(4)).join(','); area = `around:450,${pts}`; filt = kind === 'fuel' ? '[amenity=fuel]' : '[amenity=charging_station]'; }
+    const j = await overpass(`[out:json][timeout:25];nwr(${area})${filt};out center 80;`, 25000);
+    const items = (j.elements || []).map(e => { const la = e.lat || (e.center && e.center.lat), lo = e.lon || (e.center && e.center.lon), tg = e.tags || {}; return la ? {lat: la, lon: lo, name: tg.name || tg.brand || tg.operator || (kind === 'park' ? t('btn_park') : kind === 'fuel' ? t('btn_fuel') : t('btn_chg')), tg} : null; }).filter(Boolean).map(p => {
+      if (kind === 'park') { const d = hav(dest.lat, dest.lon, p.lat, p.lon); p.key = d; p.sub = fmtD(d) + ' · ' + (p.tg.fee === 'yes' ? '💰' : p.tg.fee === 'no' ? '🆓' : '') + (p.tg.capacity ? ' ' + p.tg.capacity + ' мест' : ''); }
+      else { const n = nearestOn(sel.coords, sel.cum, p.lat, p.lon); p.key = n.along; p.sub = fmtD(n.along) + ' · ' + fmtD(n.d) + ' ' + t('aside'); }
+      p.ic = ic; return p;
+    }).sort((a, b) => a.key - b.key).slice(0, 30);
+    openX(title, items, p => { closeX(); if (kind === 'park') setDest(p.lat, p.lon, '🅿 ' + p.name); else { VIA.push({name: p.name, lat: p.lat, lon: p.lon}); buildRoute(); } });
+  } catch (e) { openX(title, [], null); }
 }
 
 /* ================= пошаговая навигация ================= */
@@ -1262,7 +1492,9 @@ async function startNav(simulate) {
   const o = curOpt(); if (!o || !map) return;
   if (!simulate) { if (startPt) { toast(t('nav_need_gps'), 6500); return; } if (!me) { toast(t('nav_no_gps'), 5000); return; } }
   nav = {opt: o, along: 0, spoken: {}, lastReroute: 0, rerouting: false, lastLeg: -1, wl: null, drawn: -1, sim: !!simulate, savedMe: me ? Object.assign({}, me) : null};
-  follow = true; document.body.classList.add('navmode'); closePoi(); $('#rsheet').classList.remove('on');
+  follow = true; document.body.classList.add('navmode'); closePoi(); closeX(); $('#rsheet').classList.remove('on');
+  if (!simulate) addTrip(o);
+  if (o.kind === 'osrm' && o.mode === 'car' && S.camWarn) camsAlong(o).then(c => { if (nav && nav.opt === o) { nav.cams = c; setG('cams', c.map(x => ptf([x.lon, x.lat], {}))); } }).catch(() => {});
   try { if (navigator.wakeLock) nav.wl = await navigator.wakeLock.request('screen'); } catch (e) {}
   if (!nav) return;
   if (simulate) startSim(o); else updateNav();
@@ -1288,6 +1520,18 @@ function updateNav() {
   if (o.kind === 'osrm') {
     let k = o.man.findIndex(m => m.along > along + 6); if (k < 0) k = o.man.length - 1;
     const m = o.man[k], nm = o.man[k + 1]; dist = Math.max(0, m.along - along); arr = m.ar; txt = m.txt; next = nm ? t('then', nm.txt) : '';
+    if (o.tollAlong && o.tollAlong.length) {
+      const ta = o.tollAlong.find(a => a[1] > along);
+      if (ta) { if (along >= ta[0] - 3 && !nav.spoken['t' + ta[0]]) { nav.spoken['t' + ta[0]] = 1; speak(t('toll_start')); toast('💰 ' + t('toll_start'), 4000); } else if (ta[0] - along > 0 && ta[0] - along < 600 && !nav.spoken['ta' + ta[0]]) { nav.spoken['ta' + ta[0]] = 1; speak(t('toll_ahead', Math.round((ta[0] - along) / 50) * 50)); } }
+    }
+    const cw = $('#camwarn');
+    if (nav.cams && S.camWarn) {
+      const cm = nav.cams.find(c => c.along > along - 5 && c.along - along < 700);
+      if (cm) { const dd = Math.max(0, Math.round(cm.along - along)), th = dd <= 200 ? 200 : dd <= 500 ? 500 : 0, kk = 'c' + Math.round(cm.along);
+        cw.textContent = '📷 ' + t('cam_ahead', Math.round(dd / 10) * 10) + (cm.max ? ' · ' + cm.max : ''); cw.classList.add('on');
+        if (th && !nav.spoken[kk + '_' + th]) { nav.spoken[kk + '_' + th] = 1; if (th === 200) nav.spoken[kk + '_500'] = 1; speak(t('cam_ahead', th)); try { navigator.vibrate && navigator.vibrate(80); } catch (e) {} } }
+      else cw.classList.remove('on');
+    } else cw.classList.remove('on');
     const [t1, t2] = THR[o.mode] || THR.foot, ka = k + 'a', kb = k + 'b';
     if (dist <= t2 && !nav.spoken[kb]) { nav.spoken[kb] = nav.spoken[ka] = 1; speak(m.txt); }
     else if (dist <= t1 && dist > t2 && !nav.spoken[ka]) { nav.spoken[ka] = 1; speak(t('v_in', Math.round(dist / 10) * 10, m.txt.charAt(0).toLowerCase() + m.txt.slice(1))); }
@@ -1296,6 +1540,10 @@ function updateNav() {
     const L = o.legs[k], NL = o.legs[k + 1]; dist = Math.max(0, L.a1 - along); arr = legIcon(L); txt = legTitle(L); next = NL ? t('then', legTitle(NL)) : '';
     if (k !== nav.lastLeg) { nav.lastLeg = k; speak(txt); }
     if (L.type !== 'walk' && dist < 400 && !nav.spoken['x' + k]) { nav.spoken['x' + k] = 1; speak(t('prep_exit', L.to || '')); }
+    if (L.type !== 'walk' && L.stops && L.stops.length > 2 && !nav.spoken['n' + k]) {
+      let bi = 0, bd = 1e9; L.stops.forEach((s, i) => { const dd = hav(me.lat, me.lon, s.la, s.lo); if (dd < bd) { bd = dd; bi = i; } });
+      if (bi >= L.stops.length - 2 && bd < 250) { nav.spoken['n' + k] = 1; speak(t('next_exit', L.to || '')); toast('🔔 ' + t('next_exit', L.to || ''), 5000); try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {} }
+    }
   }
   const last = o.legs.length === 1 && arr === '🏁';
   $('#nbArr').textContent = arr; $('#nbDist').textContent = (arr === '🏁' && dist < 30) ? t('finish') : fmtD(dist); $('#nbTxt').textContent = txt; $('#nbNext').textContent = next;
@@ -1305,6 +1553,7 @@ function updateNav() {
 }
 function drawNavRoute(along) {
   if (nav.drawn >= 0 && Math.abs(along - nav.drawn) < 4) return; nav.drawn = along; const o = nav.opt, feats = [];
+  (o.tollSegs || []).forEach((c, i) => { if (!o.tollAlong || !o.tollAlong[i] || o.tollAlong[i][1] > along) feats.push(feat(c, {k: 'toll'})); });
   o.legs.forEach(L => {
     const walk = L.type === 'walk', pr = {k: walk ? 'walk' : 'main', color: walk ? null : (L.color || null)};
     if (L.a1 <= along) feats.push(feat(L.coords, {k: 'passed'}));
@@ -1324,7 +1573,7 @@ function endNav(arrived, silent) {
   if (sim) { clearInterval(sim); sim = null; me = n.savedMe; if (!me && meMarker) { meMarker.remove(); meMarker = null; } else if (me && meMarker) { meMarker.setLngLat([me.lon, me.lat]); } }
   try { if (n.wl) n.wl.release(); } catch (e) {}
   try { speechSynthesis.cancel(); } catch (e) {}
-  document.body.classList.remove('navmode'); $('#speedo').classList.remove('on');
+  document.body.classList.remove('navmode'); $('#speedo').classList.remove('on'); $('#camwarn').classList.remove('on'); setG('cams', []);
   if (arrived && !silent) { speak(t('arrived')); toast('🏁 ' + t('arrived'), 5000); }
   if (map) map.easeTo({pitch: S.d3 ? 60 : 0, bearing: S.d3 ? -17 : 0, padding: {top: 0, bottom: 0, left: 0, right: 0}, duration: 800});
   if (arrived) { closeRoute(); } else if (!silent) { drawRoute(false); renderRoute(); }
@@ -1471,8 +1720,14 @@ function renderLine() {
 function renderFavs() {
   const v = $('#v-favs'), tile = (k, ic, lbl) => { const p = S[k]; return `<div class="tile surf" data-k="${k}"><span style="font-size:22px">${ic}</span><b>${lbl}</b><span class="sub">${p ? esc(p.name) : t('set_place')}</span></div>`; };
   v.innerHTML = `<div class="vhead"><h2>${t('nav_favs')}</h2></div><div class="tiles">${tile('home', '🏠', t('home'))}${tile('work', '💼', t('work'))}</div>` +
+    (S.routes && S.routes.length ? `<div class="hbar"><span class="sub">${t('saved_routes')}</span></div>` + S.routes.map((r, i) => `<div class="li" data-rt="${i}"><div class="li-i">${MODE_IC[r.mode] || '🧭'}</div><div class="lt"><b>${esc(r.name)}</b><span class="sub">${new Date(r.ts).toLocaleDateString(loc())}</span></div><button class="x" data-rdel="${i}">×</button></div>`).join('') : '') +
     (S.favs.length ? S.favs.map((f, i) => `<div class="li" data-i="${i}" style="animation-delay:${Math.min(i, 8) * 30}ms"><div class="li-i">${esc(f.ic || '📍')}</div><div class="lt"><b>${esc(f.name)}</b><span class="sub">${esc([f.cat, f.addr].filter(Boolean).join(' · '))}</span></div><button class="x" data-del="${i}">×</button></div>`).join('') : `<div class="empty">⭐<br>${t('favs_empty')}</div>`);
+  v.innerHTML += (S.trips && S.trips.length ? `<div class="hbar" style="margin-top:14px"><span class="sub">${t('trip_hist')}</span><a id="tClear">${t('clear_all')}</a></div>` + S.trips.slice(0, 15).map((r, i) => `<div class="li" data-tr="${i}"><div class="li-i">${MODE_IC[r.mode] || '🧭'}</div><div class="lt"><b>${esc(r.name)}</b><span class="sub">${new Date(r.ts).toLocaleString(loc(), {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'})} · ${fmtD(r.dist || 0)} · ${fmtT(r.min || 1)}</span></div></div>`).join('') : '');
   v.onclick = e => {
+    const rd = e.target.closest('[data-rdel]'); if (rd) { S.routes.splice(+rd.dataset.rdel, 1); save(); renderFavs(); return; }
+    if (e.target.closest('#tClear')) { S.trips = []; save(); renderFavs(); return; }
+    const rr = e.target.closest('[data-rt]'); if (rr) { const r = S.routes[+rr.dataset.rt]; if (r) openSaved(r); return; }
+    const tr = e.target.closest('[data-tr]'); if (tr) { const r = S.trips[+tr.dataset.tr]; if (r) openSaved(r); return; }
     const del = e.target.closest('[data-del]'); if (del) { S.favs.splice(+del.dataset.del, 1); save(); renderFavs(); return; }
     const ti = e.target.closest('.tile'); if (ti) { const k = ti.dataset.k, p = S[k]; if (p) { pickFor = 'to'; applyPick(p.lat, p.lon, p.name, false); } else openPicker(k); return; }
     const l = e.target.closest('.li'); if (l) { const f = S.favs[+l.dataset.i]; if (f) { pickFor = 'to'; applyPick(f.lat, f.lon, f.name, false); } }
@@ -1493,7 +1748,7 @@ function checkMetro() {
 function showMetroPrompt(i, force) {
   const M = metroMem; if (!M || i < 0 || (!force && (RT.on || LINE))) return; const s = M.st[i], key = s.name;
   if (!force && metroSeen[key] && Date.now() - metroSeen[key] < 300000) return; metroSeen[key] = Date.now();
-  const el = $('#mprompt'); let h = `<div class="rhead"><div class="big">🚇 ${t('at_metro', esc(sname(s.name, s.en)))}</div><button class="x" id="mpx">×</button></div><div>${s.lines.map(li => `<span class="badge" style="background:${esc(M.lines[li].color)}">${esc(mref(M.lines[li]))}</span>`).join(' ')}</div>`;
+  const el = $('#mprompt'); el.classList.remove('smin'); let h = `<div class="rhead"><div class="big">🚇 ${t('at_metro', esc(sname(s.name, s.en)))}</div><div class="row" style="flex:none"><button class="x mn" aria-label="min"></button><button class="x" id="mpx">×</button></div></div><div>${s.lines.map(li => `<span class="badge" style="background:${esc(M.lines[li].color)}">${esc(mref(M.lines[li]))}</span>`).join(' ')}</div>`;
   if (dest) { const r = planMetro(M, {st: i}, {lat: dest.lat, lon: dest.lon}); if (r) { const legs = metroLegs(M, r, {st: i}, {lat: dest.lat, lon: dest.lon}); h += `<div class="sub" style="margin-top:8px">${t('route_to', esc(dest.name))} · ${fmtT(r.total)}</div><div class="steps">` + legs.map(L => `<div class="step"><div class="si">${legIcon(L)}</div><div>${esc(legTitle(L))}</div></div>`).join('') + '</div>'; } else h += `<div class="sub" style="margin-top:8px">${t('no_metro_route')}</div>`; }
   else h += `<div class="sub" style="margin-top:8px">${t('metro_pick_dest')}</div>`;
   h += `<div class="opt"><button class="btn ghost" id="mpScheme">${t('open_scheme')}</button>${dest ? `<button class="btn" id="mpGo">${t('show_route')}</button>` : ''}</div>`;
@@ -1519,13 +1774,13 @@ function renderMetroChips() {
 }
 function computeMetro() {
   const M = metroMem, res = $('#mres'); scHL = null;
-  if (!M || MT.from == null || (MT.to == null && !dest)) { res.classList.remove('on'); renderScheme(); return; }
+  if (!M || MT.from == null || (MT.to == null && !dest)) { res.classList.remove('on', 'smin'); renderScheme(); return; }
   const A = {st: MT.from}, B = MT.to != null ? {st: MT.to} : {lat: dest.lat, lon: dest.lon}, r = planMetro(M, A, B);
   if (!r) { res.innerHTML = t('no_metro_route'); res.classList.add('on'); renderScheme(); return; }
   scHL = {nodes: new Set(r.path.map(p => p.i)), steps: r.path.slice(1).filter(p => p.e && p.e.k === 'ride').map((p, k, arr) => null)};
   scHL.steps = []; for (let k = 1; k < r.path.length; k++) { const e = r.path[k].e; if (e && e.k === 'ride') scHL.steps.push({li: e.li, ka: nk(M.st[r.path[k - 1].i].name), kb: nk(M.st[r.path[k].i].name)}); }
   const legs = metroLegs(M, r, A, B);
-  res.innerHTML = `<div class="rhead"><div class="big">${fmtT(r.total)}</div><button class="btn" id="mOpen" style="padding:8px 14px">${t('on_map')}</button></div><div class="steps">` + legs.map(L => `<div class="step"><div class="si">${legIcon(L)}</div><div>${esc(legTitle(L))}</div></div>`).join('') + '</div>';
+  res.innerHTML = `<div class="rhead"><div class="big">${fmtT(r.total)}</div><div class="row" style="flex:none"><button class="btn" id="mOpen" style="padding:8px 14px">${t('on_map')}</button><button class="x mn" aria-label="min"></button></div></div><div class="steps">` + legs.map(L => `<div class="step"><div class="si">${legIcon(L)}</div><div>${esc(legTitle(L))}</div></div>`).join('') + '</div>';
   res.classList.add('on'); renderScheme();
   $('#mOpen').onclick = () => {
     const s = M.st[MT.from], tg = MT.to != null ? M.st[MT.to] : null; S.mode = 'transit'; save(); renderModes();
@@ -1655,8 +1910,8 @@ function syncMetroFields() {
 bindMetroFields();
 function pickStation(i) {
   const M = metroMem, s = M.st[i], sh = $('#msheet');
-  sh.innerHTML = `<div class="rhead"><div><div class="big">🚇 ${esc(sname(s.name, s.en))}</div><div class="sub">${s.lines.map(li => esc(mref(M.lines[li]))).join(', ')}</div></div><button class="x" id="msx">×</button></div><div class="opt"><button class="btn ghost" id="msFrom">🟢 ${t('from_here')}</button><button class="btn" id="msTo">🏁 ${t('go_here')}</button></div>`;
-  sh.classList.add('on'); $('#msx').onclick = () => sh.classList.remove('on');
+  sh.innerHTML = `<div class="rhead"><div><div class="big">🚇 ${esc(sname(s.name, s.en))}</div><div class="sub">${s.lines.map(li => esc(mref(M.lines[li]))).join(', ')}</div></div><div class="row" style="flex:none"><button class="x mn" aria-label="min"></button><button class="x" id="msx">×</button></div></div><div class="opt"><button class="btn ghost" id="msFrom">🟢 ${t('from_here')}</button><button class="btn" id="msTo">🏁 ${t('go_here')}</button></div>`;
+  sh.classList.remove('smin'); sh.classList.add('on'); $('#msx').onclick = () => sh.classList.remove('on', 'smin');
   $('#msFrom').onclick = () => { MT.from = i; sh.classList.remove('on'); renderMetroChips(); computeMetro(); };
   $('#msTo').onclick = () => { MT.to = i; if (MT.from === i) MT.from = null; sh.classList.remove('on'); renderMetroChips(); computeMetro(); };
 }
@@ -1679,7 +1934,8 @@ async function renderSettings() {
     <div class="set"><label>${t('accent')}</label><div class="sw">${ACCENTS.map(c => `<button data-c="${c}" class="${S.accent === c ? 'on' : ''}" style="background:${c}"></button>`).join('')}</div></div>
   </div>
   <div class="grp surf">
-    ${tog('set-d3', 'd3', t('set_3d'))}${tog('set-sat', 'sat', t('set_sat'))}${tog('set-speedo', 'speedo', t('set_speedo'))}${tog('set-voice', 'voice', t('set_voice'))}${tog('set-limit', 'limitWarn', t('set_limit'), t('set_limit_sub'))}${tog('set-trees', 'trees', t('set_trees'))}
+    ${tog('set-d3', 'd3', t('set_3d'))}${tog('set-sat', 'sat', t('set_sat'))}${tog('set-speedo', 'speedo', t('set_speedo'))}${tog('set-voice', 'voice', t('set_voice'))}${tog('set-limit', 'limitWarn', t('set_limit'), t('set_limit_sub'))}${tog('set-trees', 'trees', t('set_trees'))}${tog('set-autodn', 'autoDN', t('set_autodn'), t('set_autodn_sub'))}${tog('set-cam', 'camWarn', t('set_cam'), t('set_cam_sub'))}${tog('set-perf', 'perf', t('set_perf'), t('set_perf_sub'))}
+    <div class="set"><label>${t('set_fuel')}</label><div class="row"><input type="text" inputmode="decimal" id="fuelL" value="${S.fuelL}" style="width:80px"><span class="sub">${t('fuel_l')}</span><input type="text" inputmode="decimal" id="fuelP" value="${S.fuelP}" style="width:80px"><span class="sub">${t('fuel_p')}</span></div></div>
     <div class="set"><label>${t('set_arrow')}</label><div class="arrows">${Object.keys(ARROWS).map(k => `<button data-a="${k}" class="${S.arrow === k ? 'on' : ''}">${arrowSvg(k, S.accent, 40)}</button>`).join('')}</div></div>
   </div>
   <div class="grp surf"><div class="set"><label>${t('offline')}</label><div class="sub">${t('offline_hint')}</div>
@@ -1688,6 +1944,7 @@ async function renderSettings() {
     <div class="row" style="margin-top:8px"><button class="btn ghost" id="dlCancel" style="display:none">${t('cancel')}</button><button class="btn ghost" id="dlClear">${t('clear_maps')}</button></div>
   </div></div>
   <div class="grp surf"><div class="set"><label>${t('data')}</label><div class="row"><button class="btn ghost" id="clrTr" style="flex:1">${t('clear_transit')}</button></div><div class="sub" id="stor" style="margin-top:8px"></div></div></div>
+  <div class="grp surf"><div class="set"><label>${t('diag')}</label><div class="sub" id="diagBox" style="white-space:pre-line">${esc(diagText())}</div><div class="row" style="margin-top:8px"><button class="btn ghost" id="diagRetry" style="flex:1">${t('diag_retry')}</button></div></div></div>
   <div class="sub" style="padding:4px 6px 12px">Nova Navigator · © OpenStreetMap, OpenFreeMap, Esri · OSRM</div>`;
   if (navigator.storage && navigator.storage.estimate) navigator.storage.estimate().then(e => { const el = $('#stor'); if (el) el.textContent = t('storage', Math.round((e.usage || 0) / 1048576)); });
   if (dl) { updDl(); }
@@ -1701,12 +1958,18 @@ $('#v-settings').addEventListener('click', e => {
   else if (b.id === 'dlClear') clearOffline();
   else if (b.id === 'dlCancel') { if (dl) dl.cancel = true; }
   else if (b.id === 'clrTr') clearTransit();
+  else if (b.id === 'diagRetry') { DIAG.errs = 0; DIAG.tiles = 0; DIAG.fb = true; retryVector().then(() => { toast(DIAG.fb ? t('map_slow') : t('cleared')); renderSettings(); }); }
 });
 $('#v-settings').addEventListener('change', e => {
+  if (e.target.id === 'fuelL' || e.target.id === 'fuelP') { const v = parseFloat(String(e.target.value).replace(',', '.')); if (v > 0 && v < 1000) { S[e.target.id] = v; save(); if (RT.on) renderRoute(); } else e.target.value = S[e.target.id]; return; }
   const k = e.target.dataset.tg; if (!k) return; const on = e.target.checked;
-  if (k === 'd3') set3D(on); else if (k === 'sat') setSat(on); else { S[k] = on; save(); if (k === 'speedo') updateSpeed(); if (k === 'trees') { lastTree = null; refreshTrees(); } if (k === 'limitWarn') limitTick(); if (k === 'voice') $('#nbVoice').textContent = on ? '🔊' : '🔇'; }
+  if (k === 'd3') set3D(on); else if (k === 'sat') setSat(on); else { S[k] = on; save(); if (k === 'speedo') updateSpeed(); if (k === 'trees') { lastTree = null; refreshTrees(); } if (k === 'autoDN') { applyTheme(); renderSettings(); } if (k === 'camWarn' && !on) { $('#camwarn').classList.remove('on'); } if (k === 'perf') { rebuildStyle(); lastTree = null; scheduleTrees(); toast(t('restart_hint')); } if (k === 'limitWarn') limitTick(); if (k === 'voice') $('#nbVoice').textContent = on ? '🔊' : '🔇'; }
 });
-async function clearTransit() { const ks = await kv.keys(); for (const k of ks) if (/^(nr3\||rf4\||ts3\||line4\||rd3\||ni3\||geom3\||metro3)/.test(String(k))) await kv.del(k); metroMem = null; toast(t('cleared')); }
+function diagText() {
+  const fm = {tiles: DIAG.tiles, errs: DIAG.errs};
+  return [`${t('diag_map')}: ${DIAG.style}${DIAG.fb ? ' (' + t('diag_fb') + ')' : ''} · ${t('diag_tiles')}: ${fm.tiles} · ${t('diag_errs')}: ${fm.errs}`, `GPU: ${DIAG.gpu || '—'}${S.perf ? ' · ' + t('set_perf') : ''}`, `GPS: ${me ? Math.round(me.acc || 0) + ' m' : (DIAG.geo || '—')}`, `${navigator.onLine === false ? 'offline' : 'online'} · SW: ${('serviceWorker' in navigator && navigator.serviceWorker.controller) ? 'on' : 'off'}`, DIAG.lastErr ? t('diag_last') + ': ' + DIAG.lastErr : ''].filter(Boolean).join('\n');
+}
+async function clearTransit() { const ks = await kv.keys(); for (const k of ks) if (/^(nr3\||rf4\||rf5\||ts3\||line4\||rd3\||ni3\||geom3\||tw1\||cam1\||metro3)/.test(String(k))) await kv.del(k); metroMem = null; toast(t('cleared')); }
 
 /* ================= офлайн-карты ================= */
 let dl = null;
@@ -1747,6 +2010,7 @@ function applyLang() {
   renderModes(); updateToPill(); updateFromPill(); renderRoute();
   const on = $('.view.on'); if (on) { const n = on.id.slice(2); if (n === 'search') openSearchTab(); else if (n === 'favs') renderFavs(); else if (n === 'settings') renderSettings(); else if (n === 'metro') openMetroTab(); }
 }
+document.addEventListener('click', e => { const b = e.target.closest('.mn'); if (!b) return; const sh = b.closest('.sheet,#mres,#msheet'); if (sh) sh.classList.toggle('smin'); });
 applyTheme(); applyLang(); $('#viewBtn').textContent = S.d3 ? '3D' : '2D';
 if (S.sat) { $('#satBtn').style.color = '#fff'; $('#satBtn').style.background = 'var(--accent)'; }
 tab('nav'); initMap(); startGeo();
