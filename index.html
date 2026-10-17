@@ -358,14 +358,14 @@ downloading: 'Downloading', preparing: 'Preparing…', dl_busy: 'Download alread
 };
 
 Object.assign(D.ru, {
-  t_combo: 'Транспорт + метро', no_combo: 'Комбинированных вариантов нет', toll: 'Платная', nontoll: 'Бесплатная', toll_note: 'На маршруте есть платная дорога (например, ЗСД). Выберите бесплатный вариант ниже, если не хотите платить.',
+  t_combo: 'Транспорт + метро', no_combo: 'Комбинированных вариантов нет', fuzzy_note: 'Точных совпадений нет — показаны похожие варианты', toll: 'Платная', nontoll: 'Бесплатная', toll_note: 'На маршруте есть платная дорога (например, ЗСД). Выберите бесплатный вариант ниже, если не хотите платить.',
   via_add: 'Заехать', via_where: 'Куда заехать по пути?', pick_via: 'Точка по пути', i_via: 'Заезд: {0}', clear_all: 'Очистить всё',
   mf_from: 'Откуда: станция метро', mf_to: 'Куда: станция метро',
   set_limit: 'Предупреждать о превышении скорости', set_limit_sub: 'Показывает ограничение на дороге и мигает, если вы быстрее на 10 км/ч и больше (только авто)', set_trees: 'Деревья в парках (3D)',
   limit_over: 'Превышение! Ограничение {0}', terr_city: 'город', terr_out: 'за городом', share_route: 'Поделиться маршрутом'
 });
 Object.assign(D.en, {
-  t_combo: 'Transit + metro', no_combo: 'No combined options', toll: 'Toll', nontoll: 'Free', toll_note: 'This route has a toll road. Pick a free alternative below if you prefer.',
+  t_combo: 'Transit + metro', no_combo: 'No combined options', fuzzy_note: 'No exact match — showing similar results', toll: 'Toll', nontoll: 'Free', toll_note: 'This route has a toll road. Pick a free alternative below if you prefer.',
   via_add: 'Add stop', via_where: 'Where to stop on the way?', pick_via: 'Stop on the way', i_via: 'Stop: {0}', clear_all: 'Clear all',
   mf_from: 'From: metro station', mf_to: 'To: metro station',
   set_limit: 'Speed limit warning', set_limit_sub: 'Shows the road speed limit and flashes when you are 10 km/h or more over it (car only)', set_trees: '3D trees in parks',
@@ -402,6 +402,8 @@ Object.assign(D.en, {
   tr_loading: 'Loading the train network (once, up to a minute)…', tr_none: 'No train route found', tr_none_hint: 'Some lines may be missing in OSM. Try nearby stations.', tr_empty: 'Choose where you are going from and to', tr_station: 'station', tr_xfers: 'transfers: {0}', tr_on_map: 'Show on map',
   go_trains_hint: 'This place is not reachable by regular transit (or it is far out of town). See the train route in the separate section.', open_trains: 'Open the Trains section', no_train_data: 'Could not get train data'
 });
+Object.assign(D.ru, { tr_net: 'Сеть электричек: станций {0}, линий {1}', tr_near_from: 'Ближайшие станции к точке «откуда»', tr_near_to: 'Ближайшие станции к точке «куда»', tr_no_near: 'В радиусе 30 км станций нет в данных', tr_reach: 'От «{0}» можно доехать до станций: {1}', tr_refresh: 'Обновить сеть электричек' });
+Object.assign(D.en, { tr_net: 'Train network: {0} stations, {1} lines', tr_near_from: 'Nearest stations to the start point', tr_near_to: 'Nearest stations to the destination', tr_no_near: 'No stations within 30 km in the data', tr_reach: 'From "{0}" you can reach stations: {1}', tr_refresh: 'Refresh train network' });
 
 "use strict";
 /* ================= утилиты и состояние ================= */
@@ -1090,26 +1092,46 @@ async function transitRides(o, d, kind) {
   }
   return list;
 }
-/* комбинированные маршруты: наземный транспорт до метро → метро → наземный/пешком */
+/* маршруты вокруг точки: все наземные линии, проходящие рядом (с полным списком остановок) */
+function fetchRelsNear(p, R) {
+  const key = `rn1|${p.lat.toFixed(3)},${p.lon.toFixed(3)}|${R}`;
+  if (_inflight.has(key)) return _inflight.get(key);
+  const pr = (async () => {
+    const c = await kv.get(key); if (c && Date.now() - c.ts < 2 * 864e5) return c.rels;
+    const q = `[out:json][timeout:30];(${stopsAround(p, R, 's')})->.sa;rel(bn.sa)${RTYPE.s}->.ra;.ra out body;node(r.ra);out body qt;`;
+    const rels = parseRels(await lim(() => overpass(q, 30000))); kv.set(key, {ts: Date.now(), rels}); return rels;
+  })();
+  _inflight.set(key, pr); pr.then(() => _inflight.delete(key), () => _inflight.delete(key)); return pr;
+}
+/* комбинированные маршруты: наземный транспорт (автобус/трамвай/…) до метро → метро → наземный транспорт/пешком */
 async function comboOptions(o, d) {
-  const M = await loadMetro(), sp = i => ({lat: M.st[i].lat, lon: M.st[i].lon}), direct = hav(o.lat, o.lon, d.lat, d.lon); if (direct < 1800) return [];
-  const cands = p => M.st.map((s, i) => ({i, d: hav(p.lat, p.lon, s.lat, s.lon)})).filter(x => x.d > 450 && x.d < 7000).sort((a, b) => a.d - b.d).slice(0, 4);
-  const near = (p, n) => M.st.map((s, i) => ({i, d: hav(p.lat, p.lon, s.lat, s.lon)})).filter(x => x.d <= 1500).sort((a, b) => a.d - b.d).slice(0, 2);
-  const CE = cands(o), CX = cands(d), walkE = near(o, 2), walkX = near(d, 2), acc = new Map(), egr = new Map();
-  const [RA, RE] = await Promise.all([CE.length ? fetchRels([o], CE.map(c => sp(c.i)), 's', 450).catch(() => []) : [], CX.length ? fetchRels(CX.map(c => sp(c.i)), [d], 's', 450).catch(() => []) : []]);
-  CE.forEach(c => { const r = bestRides(RA, o, sp(c.i), 's', 450)[0]; if (r) acc.set(c.i, r); });
-  CX.forEach(c => { const r = bestRides(RE, sp(c.i), d, 's', 450)[0]; if (r) egr.set(c.i, r); });
+  const M = await loadMetro(), direct = hav(o.lat, o.lon, d.lat, d.lon); if (direct < 1800) return [];
+  const sp = i => ({lat: M.st[i].lat, lon: M.st[i].lon}), nm = i => sname(M.st[i].name, M.st[i].en);
+  const nearSt = (la, lo, R) => { let b = -1, bd = R; M.st.forEach((s, i) => { const x = hav(la, lo, s.lat, s.lon); if (x < bd) { bd = x; b = i; } }); return b < 0 ? null : {i: b, d: bd}; };
+  const [RA, RB] = await Promise.all([fetchRelsNear(o, 600).catch(() => []), fetchRelsNear(d, 600).catch(() => [])]);
   const Es = new Map(), Xs = new Map();
-  acc.forEach((op, i) => Es.set(i, {op})); walkE.forEach(w => { if (!Es.has(w.i)) Es.set(w.i, {walk: w.d}); else Es.get(w.i).walk = w.d; });
-  egr.forEach((op, i) => Xs.set(i, {op})); walkX.forEach(w => { if (!Xs.has(w.i)) Xs.set(w.i, {walk: w.d}); else Xs.get(w.i).walk = w.d; });
-  if (!acc.size && !egr.size) { const e = new Error(t('no_combo')); e.soft = true; throw e; }
+  const keep = (mp, i, op, far) => { const sc = op.min + far / 600, c = mp.get(i); if (!c || !c.op || c.sc > sc) mp.set(i, Object.assign(c || {}, {op, sc})); };
+  RA.forEach(r => {
+    let ia = -1, da = 1e9; r.stops.forEach((s, i) => { const x = hav(o.lat, o.lon, s.la, s.lo); if (x < da) { da = x; ia = i; } }); if (da > 600) return;
+    for (let ib = ia + 1; ib < r.stops.length; ib++) { const s = r.stops[ib], ns = nearSt(s.la, s.lo, 500); if (!ns) continue; if (hav(o.lat, o.lon, s.la, s.lo) < 700) continue; keep(Es, ns.i, rideOption({r, ia, ib, da, db: ns.d}, o, sp(ns.i)), hav(M.st[ns.i].lat, M.st[ns.i].lon, d.lat, d.lon)); }
+  });
+  RB.forEach(r => {
+    let ib = -1, db = 1e9; r.stops.forEach((s, i) => { const x = hav(d.lat, d.lon, s.la, s.lo); if (x < db) { db = x; ib = i; } }); if (db > 600) return;
+    for (let ia = 0; ia < ib; ia++) { const s = r.stops[ia], ns = nearSt(s.la, s.lo, 500); if (!ns) continue; if (hav(d.lat, d.lon, s.la, s.lo) < 700) continue; keep(Xs, ns.i, rideOption({r, ia, ib, da: ns.d, db}, sp(ns.i), d), hav(M.st[ns.i].lat, M.st[ns.i].lon, o.lat, o.lon)); }
+  });
+  const top = mp => new Map([...mp.entries()].sort((a, b) => a[1].sc - b[1].sc).slice(0, 6));
+  const E2 = top(Es), X2 = top(Xs);
+  const near = p => M.st.map((s, i) => ({i, d: hav(p.lat, p.lon, s.lat, s.lon)})).filter(x => x.d <= 1500).sort((a, b) => a.d - b.d).slice(0, 2);
+  near(o).forEach(w => { if (!E2.has(w.i)) E2.set(w.i, {walk: w.d}); else E2.get(w.i).walk = w.d; });
+  near(d).forEach(w => { if (!X2.has(w.i)) X2.set(w.i, {walk: w.d}); else X2.get(w.i).walk = w.d; });
+  if (!Es.size && !Xs.size) { const e = new Error(t('no_combo')); e.soft = true; throw e; }
   const res = [];
-  Es.forEach((ea, ei) => Xs.forEach((xa, xi) => {
+  E2.forEach((ea, ei) => X2.forEach((xa, xi) => {
     if (ei === xi) return; const A = {st: ei}, B = {st: xi}, r = planMetro(M, A, B); if (!r) return;
     for (const am of ['ride', 'walk']) for (const xm of ['ride', 'walk']) {
       if (am === 'walk' && ea.walk == null) continue; if (xm === 'walk' && xa.walk == null) continue;
       if (am === 'ride' && !ea.op) continue; if (xm === 'ride' && !xa.op) continue; if (am === 'walk' && xm === 'walk') continue;
-      const legs = [], nm = i => sname(M.st[i].name, M.st[i].en);
+      const legs = [];
       if (am === 'ride') ea.op.legs.forEach((L, k, a) => { const c = Object.assign({}, L); if (c.type === 'walk' && k === a.length - 1 && !c.toName) c.toName = nm(ei); legs.push(c); }); else legs.push(walkLeg(o, sp(ei), nm(ei)));
       legs.push(...metroLegs(M, r, A, B));
       if (xm === 'ride') xa.op.legs.forEach(L => legs.push(Object.assign({}, L))); else legs.push(walkLeg(sp(xi), d, ''));
@@ -1118,7 +1140,7 @@ async function comboOptions(o, d) {
     }
   }));
   res.sort((a, b) => (a.score || a.min) - (b.score || b.min));
-  const seen = new Set(), out = []; for (const op of res) { if (seen.has(op.key)) continue; seen.add(op.key); out.push(op); if (out.length >= 3) break; }
+  const seen = new Set(), out = []; for (const op of res) { if (seen.has(op.key)) continue; seen.add(op.key); out.push(op); if (out.length >= 4) break; }
   return out;
 }
 
@@ -1661,13 +1683,30 @@ async function nearby(k) {
 const onQuery = debounce(() => { const v = $('#q').value.trim(); if (v.length < 2) { renderSearchHome(); return; } if (qMode === 'places') doSearch(v); else doTransportSearch(v); }, 500);
 $('#q').addEventListener('input', onQuery);
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { const v = $('#q').value.trim(); if (v) { if (qMode === 'places') doSearch(v); else doTransportSearch(v); } } });
+/* поиск адресов с исправлением опечаток: Nominatim → Photon (нечёткий поиск) → усечённые варианты запроса */
+const GEO_VB = 'viewbox=27.8,61.8,36.0,58.4&bounded=1';
+const geoNom = q => fj(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&addressdetails=1&accept-language=${S.lang}&countrycodes=ru&${GEO_VB}&q=${encodeURIComponent(q)}`, {ms: 12000}).then(j => j.map(p => ({name: placeName(p), lat: +p.lat, lon: +p.lon, sub: p.display_name.split(',').slice(1, 4).join(',').trim(), type: p.type, category: p.category}))).catch(() => []);
+const geoPhoton = q => { const c = me ? `&lat=${me.lat.toFixed(3)}&lon=${me.lon.toFixed(3)}` : '&lat=59.94&lon=30.31'; return fj(`https://photon.komoot.io/api/?limit=8&bbox=27.8,58.4,36.0,61.8${c}&q=${encodeURIComponent(q)}`, {ms: 9000}).then(j => (j.features || []).map(f => { const p = f.properties || {}, c = f.geometry.coordinates; const nm = p.housenumber ? houseName(p.street || p.name || '', p.housenumber) : (p.name || p.street || ''); return {name: nm, lat: c[1], lon: c[0], sub: [p.district, p.city || p.county, p.state].filter(Boolean).join(', '), type: p.osm_value, category: p.osm_key}; }).filter(x => x.name)).catch(() => []); };
+function geoMerge(a, b) { const out = a.slice(); b.forEach(x => { if (!out.some(y => Math.abs(y.lat - x.lat) < .0006 && Math.abs(y.lon - x.lon) < .0009 || (y.name.toLowerCase() === x.name.toLowerCase() && Math.abs(y.lat - x.lat) < .01))) out.push(x); }); return out; }
+function geoVariants(v) {
+  const w = v.trim().split(/\s+/), out = new Set(), last = w.length - 1;
+  for (let k = 1; k <= 3; k++) if (w[last].length - k >= 4) out.add(w.slice(0, last).concat(w[last].slice(0, -k)).join(' '));
+  w.forEach((x, i) => { if (i !== last && x.length >= 6) out.add(w.map((y, j) => j === i ? y.slice(0, -2) : y).join(' ')); });
+  return [...out].slice(0, 5);
+}
+async function geoSearch(v) {
+  let [res, ph] = await Promise.all([geoNom(v), v.length >= 3 ? geoPhoton(v) : []]); let fuzzy = false;
+  if (res.length < 4) res = geoMerge(res, ph);
+  if (!res.length) { const vs = geoVariants(v); if (vs.length) { const r = await Promise.all(vs.map(geoNom)); r.forEach(x => { res = geoMerge(res, x); }); fuzzy = res.length > 0; } }
+  return {items: res.slice(0, 10), fuzzy};
+}
 async function doSearch(v) {
   const box = $('#qres'); $('#qchips').innerHTML = ''; box.innerHTML = `<div class="note"><i class="spin"></i>${t('searching')}</div>`;
   try {
-    const j = await fj(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&addressdetails=1&accept-language=${S.lang}&countrycodes=ru&viewbox=27.8,61.8,36.0,58.4&bounded=1&q=${encodeURIComponent(v)}`, {ms: 12000});
-    if (!j.length) { box.innerHTML = `<div class="empty">${t('nothing_reg')}</div>`; return; }
-    hist = j.map(p => ({name: placeName(p), lat: +p.lat, lon: +p.lon}));
-    box.innerHTML = j.map((p, i) => { const c = catInfo(p.type, p.category); return li(c.ic, hist[i].name, p.display_name.split(',').slice(1, 4).join(',').trim(), i); }).join('');
+    const r = await geoSearch(v); if ($('#q').value.trim() !== v) return;
+    if (!r.items.length) { box.innerHTML = `<div class="empty">${t('nothing_reg')}</div>`; return; }
+    hist = r.items;
+    box.innerHTML = (r.fuzzy ? `<div class="note">${t('fuzzy_note')}</div>` : '') + hist.map((p, i) => { const c = catInfo(p.type, p.category); return li(c.ic, p.name, p.sub, i); }).join('');
     box.onclick = e => { const x = e.target.closest('.li'); if (!x) return; const p = hist[+x.dataset.i]; applyPick(p.lat, p.lon, p.name); };
   } catch (e) { box.innerHTML = `<div class="empty">${t('err_search')}</div>`; }
 }
@@ -1792,13 +1831,14 @@ function showMetroPrompt(i, force) {
 const nkeyT = n => String(n || '').toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z0-9]/g, '');
 const TR = {from: null, to: null, opts: [], sel: null, busy: false, err: '', seq: 0, key: '', sug: [], sugWhich: 'from'};
 let trMem = null, trLoading = null;
+function lev(a, b) { if (a === b) return 0; const m = a.length, n = b.length; if (!m || !n) return m + n; let p = Array.from({length: n + 1}, (_, j) => j); for (let i = 1; i <= m; i++) { const c = [i]; for (let j = 1; j <= n; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = c; } return p[n]; }
 
 /* ---- загрузка сети: все пригородные маршруты Ленобласти одним запросом (кэш на 30 дней) ---- */
 function buildTrainNet(rels) {
   const st = [], grid = new Map(), cx = la => Math.round(la / .004), cy = lo => Math.round(lo / .008);
   const findSt = (n, la, lo) => {
     const k = nkeyT(n), a = cx(la), b = cy(lo); let best = -1, bd = 1e9;
-    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const l = grid.get((a + dx) + ',' + (b + dy)); if (!l) continue; for (const i of l) { const s = st[i], d = hav(la, lo, s.la, s.lo), lm = (k && s.k === k) ? 420 : 70; if (d < lm && d < bd) { bd = d; best = i; } } }
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const l = grid.get((a + dx) + ',' + (b + dy)); if (!l) continue; for (const i of l) { const s = st[i], d = hav(la, lo, s.la, s.lo), lm = (k && s.k === k) ? 420 : 120; if (d < lm && d < bd) { bd = d; best = i; } } }
     if (best >= 0) return best;
     st.push({n, la, lo, k}); const i = st.length - 1, key = a + ',' + b; if (!grid.has(key)) grid.set(key, []); grid.get(key).push(i); return i;
   };
@@ -1810,24 +1850,30 @@ function buildTrainNet(rels) {
   });
   return {v: 1, st: st.map(s => ({n: s.n, la: s.la, lo: s.lo})), rels: R};
 }
-function prepNet(T) { const by = new Map(); T.rels.forEach((r, ri) => r.st.forEach((s, p) => { if (!by.has(s)) by.set(s, []); by.get(s).push([ri, p]); })); T.byM = by; return T; }
+function prepNet(T) {
+  const by = new Map(); T.rels.forEach((r, ri) => r.st.forEach((s, p) => { if (!by.has(s)) by.set(s, []); by.get(s).push([ri, p]); })); T.byM = by;
+  /* соседние станции в пределах 600 м (пересадка пешком, если названия или остановки не совпали) */
+  const ids = [...by.keys()].sort((a, b) => T.st[a].la - T.st[b].la), nb = new Map();
+  for (let x = 0; x < ids.length; x++) for (let y = x + 1; y < ids.length; y++) { const a = T.st[ids[x]], b = T.st[ids[y]]; if (b.la - a.la > .0055) break; const d = hav(a.la, a.lo, b.la, b.lo); if (d < 600) { (nb.get(ids[x]) || nb.set(ids[x], []).get(ids[x])).push([ids[y], d]); (nb.get(ids[y]) || nb.set(ids[y], []).get(ids[y])).push([ids[x], d]); } }
+  T.nbM = nb; return T;
+}
 const TR_CHUNKS = [[58.4, 27.8, 60.1, 31.9], [58.4, 31.9, 60.1, 36.0], [60.1, 27.8, 61.8, 31.9], [60.1, 31.9, 61.8, 36.0]];
-const trQ = bb => `[out:json][timeout:120];rel[route~"^(train|light_rail)$"][service!~"long_distance|high_speed|night|international"](${bb})->.r;.r out body;node(r.r);out body qt;`;
+const trQ = bb => `[out:json][timeout:120];rel[route~"^(train|light_rail)$"][service!~"long_distance|high_speed|night|international"](${bb})->.r;.r out body;node(r.r);out body qt;way(r.r)[railway=platform];out center qt;`;
 async function loadTrains() {
   if (trMem) return trMem; if (trLoading) return trLoading;
   trLoading = (async () => {
     const c = await kv.get('trnet1');
     if (c && c.T && c.T.v === 1 && Date.now() - c.ts < 30 * 864e5) { trMem = prepNet(c.T); return trMem; }
-    let els = null;
+    let els = null, partial = false;
     try { els = (await overpass(trQ(LO_BBOX.join(',')), 120000)).elements || []; }
     catch (e) { /* целиком не вышло — пробуем по четырём частям */
       els = []; let okN = 0, last = e;
       for (const b of TR_CHUNKS) { try { els = els.concat((await overpass(trQ(b.join(',')), 90000)).elements || []); okN++; } catch (er) { last = er; } }
-      if (!okN) throw last;
+      if (!okN) throw last; partial = okN < TR_CHUNKS.length;
     }
     const T = buildTrainNet(parseRels({elements: els}));
     if (!T.rels.length) throw new Error(t('no_train_data'));
-    kv.set('trnet1', {ts: Date.now(), T}); trMem = prepNet(T); return trMem;
+    kv.set('trnet1', {ts: partial ? Date.now() - 29.9 * 864e5 : Date.now(), T, partial}); trMem = prepNet(T); return trMem;
   })();
   trLoading.then(() => { trLoading = null; }, () => { trLoading = null; });
   return trLoading;
@@ -1853,6 +1899,7 @@ function trDijkstra(T, src, w0) {
     const ri = Math.floor(k / 1000), p = k % 1000, r = T.rels[ri], s = r.st[p];
     if (p + 1 < r.st.length) { const k2 = key(ri, p + 1), nc = c + trSegMin(T, r, p); if (nc < (dist.has(k2) ? dist.get(k2) : 1e9)) { dist.set(k2, nc); prev.set(k2, k); H.push(nc, k2); } }
     (T.byM.get(s) || []).forEach(([rj, q]) => { if (rj === ri) return; const k2 = key(rj, q), nc = c + 3 + trWait(T.rels[rj]); if (nc < (dist.has(k2) ? dist.get(k2) : 1e9)) { dist.set(k2, nc); prev.set(k2, k); H.push(nc, k2); } });
+    (T.nbM.get(s) || []).forEach(([sj, dd]) => (T.byM.get(sj) || []).forEach(([rj, q]) => { const k2 = key(rj, q), nc = c + 3 + trWalkMin(dd) + trWait(T.rels[rj]); if (nc < (dist.has(k2) ? dist.get(k2) : 1e9)) { dist.set(k2, nc); prev.set(k2, k); H.push(nc, k2); } }));
   }
   return {dist, prev};
 }
@@ -1867,13 +1914,14 @@ function trLegs(T, path, A, B, a, b) {
   rides.forEach((g, gi) => {
     const r = T.rels[g.ri], ss = r.st.slice(g.p0, g.p1 + 1).map(i => ({n: T.st[i].n, la: T.st[i].la, lo: T.st[i].lo})), coords = ss.map(s => [s.lo, s.la]);
     let len = 0, mn = 0; for (let i = 1; i < coords.length; i++) len += hav(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]); for (let p = g.p0; p < g.p1; p++) mn += trSegMin(T, r, p);
+    if (gi) { const pr = out[out.length - 1], pe = pr.coords[pr.coords.length - 1], fs = ss[0]; if (hav(pe[1], pe[0], fs.la, fs.lo) > 40) { const w = walkLeg({lat: pe[1], lon: pe[0]}, {lat: fs.la, lon: fs.lo}, fs.n); w.xfer = true; out.push(w); } }
     out.push({type: 'train', ref: trShort(r), color: r.col || VEH.train.col, coords, dist: len, min: mn, wait: trWait(r) + (gi ? 3 : 0), iv: r.iv || 0, relId: r.id, from: ss[0].n, to: ss[ss.length - 1].n, n: ss.length - 1, dirTo: r.to || ss[ss.length - 1].n, stops: ss});
   });
   if (b.d > 30) out.push(walkLeg({lat: sl.la, lon: sl.lo}, B, ''));
   return {legs: out, key: rides.map(g => T.rels[g.ri].id).join('-')};
 }
 function planTrains(T, A, B) {
-  const oa = trNear(T, A, 3), ob = trNear(T, B, 3), cand = new Map();
+  const oa = trNear(T, A, 5), ob = trNear(T, B, 5), cand = new Map();
   oa.forEach(a => {
     const {dist, prev} = trDijkstra(T, a.i, trWalkMin(a.d));
     ob.forEach(b => {
@@ -1916,10 +1964,11 @@ function trSkeleton() {
     const q = $(which === 'from' ? '#tFrom' : '#tTo').value.trim(); TR.sugWhich = which; if (q.length < 2) { sug.classList.remove('on'); return; }
     const k = nkeyT(q), items = [];
     if (trMem) trMem.st.forEach((s, i) => { const n = nkeyT(s.n); if (n && n.includes(k)) items.push({st: i, name: s.n, lat: s.la, lon: s.lo, rank: n.startsWith(k) ? 0 : 1}); });
+    if (!items.length && trMem && k.length >= 4) trMem.st.forEach((s, i) => { const n = nkeyT(s.n); if (!n) return; const dd = Math.min(lev(n.slice(0, k.length), k), lev(n, k)); if (dd <= Math.max(1, Math.floor(k.length / 4))) items.push({st: i, name: s.n, lat: s.la, lon: s.lo, rank: 2 + dd}); });
     items.sort((a, b) => a.rank - b.rank || a.name.length - b.name.length); const st = items.slice(0, 6);
     const render = pl => { if (TR.sugWhich !== which) return; TR.sug = st.concat(pl); sug.innerHTML = TR.sug.length ? TR.sug.map((p, i) => `<div class="li" data-i="${i}"><div class="li-i">${p.st != null ? '🚉' : '📍'}</div><div class="lt"><b>${esc(p.name)}</b><span class="sub">${esc(p.sub || (p.st != null ? t('tr_station') : ''))}</span></div></div>`).join('') : `<div class="empty" style="padding:12px">${t('nothing')}</div>`; sug.classList.add('on'); };
     render([]);
-    if (q.length >= 3) { try { const j = await fj(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1&accept-language=${S.lang}&countrycodes=ru&viewbox=27.8,61.8,36.0,58.4&bounded=1&q=${encodeURIComponent(q)}`, {ms: 9000}); render(j.map(p => ({name: placeName(p), lat: +p.lat, lon: +p.lon, sub: p.display_name.split(',').slice(1, 3).join(',').trim()}))); } catch (e) {} }
+    if (q.length >= 3) { try { const r = await geoSearch(q); render(r.items.slice(0, 5)); } catch (e) {} }
   }, 350);
   sug.onpointerdown = e => {
     e.preventDefault(); const x = e.target.closest('.li'); if (!x) return; const p = TR.sug[+x.dataset.i]; if (!p) return;
@@ -1955,11 +2004,24 @@ async function trCompute(soft) {
   TR.busy = false; trRender();
 }
 const trCur = () => TR.opts.find(o => o.id === TR.sel) || null;
+function trDiag() {
+  const T = trMem; if (!T) return '';
+  const blk = (P, w, lbl) => { const a = trNear(T, {lat: P.lat, lon: P.lon}, 5); return `<div class="sub" style="margin-top:10px">${lbl}: ${esc(P.name)}</div><div class="chips">` + (a.length ? a.map(x => `<button data-pick="${x.i}" data-w="${w}">🚉 ${esc(T.st[x.i].n || '?')} · ${fmtD(x.d)}</button>`).join('') : `<span class="sub">${t('tr_no_near')}</span>`) + '</div>'; };
+  let reach = '';
+  try { const a = trNear(T, {lat: TR.from.lat, lon: TR.from.lon}, 1)[0]; if (a) { const r = trDijkstra(T, a.i, 0); reach = `<div class="sub" style="margin-top:8px">${t('tr_reach', esc(T.st[a.i].n || '?'), new Set([...r.dist.keys()].map(k => T.rels[Math.floor(k / 1000)].st[k % 1000])).size)}</div>`; } } catch (e) {}
+  return `<div style="margin-top:8px"><div class="sub">${t('tr_net', T.st.length, T.rels.length)}</div>${TR.from && TR.to ? blk(TR.from, 'from', t('tr_near_from')) + blk(TR.to, 'to', t('tr_near_to')) + reach : ''}<div class="row" style="margin-top:10px"><button class="btn ghost" id="trRefresh" style="flex:1">${t('tr_refresh')}</button></div></div>`;
+}
 function trRender() {
   const box = $('#tres'); if (!box) return;
   if (TR.busy) { box.innerHTML = `<div class="note"><i class="spin"></i>${trMem ? t('searching') : t('tr_loading')}</div>`; return; }
   if (!TR.from || !TR.to) { box.innerHTML = `<div class="empty">🚆<br>${t('tr_empty')}</div>`; return; }
-  if (!TR.opts.length) { box.innerHTML = `<div class="empty">${esc(TR.err || t('tr_none'))}${TR.retry ? ` <a class="retry" id="trRetry">${t('retry')}</a>` : `<br><span class="sub">${t('tr_none_hint')}</span>`}</div>`; const r = $('#trRetry'); if (r) r.onclick = () => { TR.retry = false; TR.key = ''; trCompute(); }; return; }
+  if (!TR.opts.length) {
+    box.innerHTML = `<div class="empty" style="padding-bottom:6px">${esc(TR.err || t('tr_none'))}${TR.retry ? ` <a class="retry" id="trRetry">${t('retry')}</a>` : `<br><span class="sub">${t('tr_none_hint')}</span>`}</div>` + trDiag();
+    const r = $('#trRetry'); if (r) r.onclick = () => { TR.retry = false; TR.key = ''; trCompute(); };
+    box.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { const s = trMem.st[+b.dataset.pick]; TR[b.dataset.w] = {lat: s.la, lon: s.lo, name: s.n, st: +b.dataset.pick}; trSync(); trCompute(); });
+    const rf = $('#trRefresh'); if (rf) rf.onclick = async () => { await kv.del('trnet1'); trMem = null; TR.key = ''; trCompute(); };
+    return;
+  }
   const sel = trCur(), nTr = o => o.legs.filter(L => L.type === 'train').length;
   let h = '<div class="opts">' + TR.opts.map((o, i) => `<div class="o ${o.id === TR.sel ? 'sel' : ''}" data-id="${esc(o.id)}" style="animation-delay:${i * 40}ms"><div class="ch">${optChips(o)}</div><div class="tm"><b>${fmtT(o.min)}</b><div class="sub">${nTr(o) > 1 ? t('tr_xfers', nTr(o) - 1) + ' · ' : ''}🚶 ${fmtD(o.walk)}</div></div></div>`).join('') + '</div>';
   if (sel) { h += '<div class="steps">' + sel.legs.map(L => `<div class="step"><div class="si">${legIcon(L)}</div><div><div>${esc(legTitle(L))}</div><div class="sub">${fmtT(L.min)}${L.wait ? ' · ' + t('wait_n', Math.round(L.wait)) : ''}</div></div></div>`).join('') + '</div>'; h += `<div class="acts"><button class="btn" id="trMap">🗺 ${t('tr_on_map')}</button></div>`; }
@@ -2183,7 +2245,7 @@ $('#v-settings').addEventListener('change', e => {
 });
 function diagText() {
   const fm = {tiles: DIAG.tiles, errs: DIAG.errs};
-  return [`${t('diag_map')}: ${DIAG.style}${DIAG.fb ? ' (' + t('diag_fb') + ')' : ''} · ${t('diag_tiles')}: ${fm.tiles} · ${t('diag_errs')}: ${fm.errs}`, `GPU: ${DIAG.gpu || '—'}${S.perf ? ' · ' + t('set_perf') : ''}`, `GPS: ${me ? Math.round(me.acc || 0) + ' m' : (DIAG.geo || '—')}`, `${navigator.onLine === false ? 'offline' : 'online'} · SW: ${('serviceWorker' in navigator && navigator.serviceWorker.controller) ? 'on' : 'off'}`, DIAG.lastErr ? t('diag_last') + ': ' + DIAG.lastErr : ''].filter(Boolean).join('\n');
+  return [`${t('diag_map')}: ${DIAG.style}${DIAG.fb ? ' (' + t('diag_fb') + ')' : ''} · ${t('diag_tiles')}: ${fm.tiles} · ${t('diag_errs')}: ${fm.errs}`, `GPU: ${DIAG.gpu || '—'}${S.perf ? ' · ' + t('set_perf') : ''}`, `GPS: ${me ? Math.round(me.acc || 0) + ' m' : (DIAG.geo || '—')}`, (typeof trMem !== 'undefined' && trMem ? `${t('nav_trains')}: ${trMem.st.length} / ${trMem.rels.length}` : '') + `${navigator.onLine === false ? ' offline' : ' online'} · SW: ${('serviceWorker' in navigator && navigator.serviceWorker.controller) ? 'on' : 'off'}`, DIAG.lastErr ? t('diag_last') + ': ' + DIAG.lastErr : ''].filter(Boolean).join('\n');
 }
 async function clearTransit() { const ks = await kv.keys(); for (const k of ks) if (/^(nr3\||rf4\||rf5\||ts3\||line4\||rd3\||ni3\||geom3\||tw1\||cam1\||metro3)/.test(String(k))) await kv.del(k); metroMem = null; toast(t('cleared')); }
 
