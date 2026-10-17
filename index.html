@@ -177,8 +177,8 @@ body.picking #top,body.picking #side,body.picking #rsheet,body.picking #poi{opac
 #msheet.on{display:block;animation:pop .25s}
 /* навбар */
 #nav{position:fixed;left:12px;right:12px;bottom:calc(10px + var(--sb));height:var(--nav);z-index:40;display:flex;padding:6px;border-radius:24px}
-#navInd{position:absolute;left:6px;top:6px;bottom:6px;width:calc((100% - 12px)/5);border-radius:18px;background:color-mix(in srgb,var(--accent) 18%,transparent);transition:transform .4s cubic-bezier(.3,1.25,.5,1)}
-#nav button{flex:1;position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10.5px;color:var(--muted);font-weight:600;transition:color .25s}
+#navInd{position:absolute;left:6px;top:6px;bottom:6px;width:calc((100% - 12px)/6);border-radius:18px;background:color-mix(in srgb,var(--accent) 18%,transparent);transition:transform .4s cubic-bezier(.3,1.25,.5,1)}
+#nav button{flex:1;min-width:0;position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10.5px;color:var(--muted);font-weight:600;transition:color .25s}
 #nav button svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s cubic-bezier(.3,1.5,.5,1)}
 #nav button.on{color:var(--accent)}
 #nav button.on svg{transform:translateY(-1px) scale(1.12)}
@@ -191,6 +191,9 @@ body.picking #top,body.picking #side,body.picking #rsheet,body.picking #poi{opac
 .mf input{flex:1;border:0;background:transparent;margin:0;padding:10px 4px;min-width:0;box-shadow:none}
 #msug{position:absolute;left:0;right:0;bottom:100%;margin-bottom:6px;max-height:34vh;overflow:auto;display:none;z-index:5;padding:4px 10px}
 #msug.on{display:block;animation:pop .2s}
+#tfields{position:relative;margin-top:10px;display:flex;flex-direction:column;gap:6px}
+#tsug{position:absolute;left:0;right:0;top:100%;margin-top:6px;max-height:40vh;overflow:auto;display:none;z-index:5;padding:4px 10px}
+#tsug.on{display:block;animation:pop .2s}
 .hx{border:0;background:transparent;color:var(--muted);font-size:22px;padding:4px 10px;border-radius:10px;flex:none}
 .hbar{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
 .hbar a{color:var(--accent);font-size:13px;cursor:pointer}
@@ -218,6 +221,7 @@ body.navmode #camwarn{top:calc(232px + var(--st))}
 .sheet.smin,#mres.smin,#msheet.smin{max-height:none;overflow:hidden}
 body.xon #rsheet{opacity:0;pointer-events:none;transform:translateY(40px)}
 .vb.toll{background:#b45309}
+#tres .acts{position:static;background:transparent;padding-top:12px}
 .badge.free{background:#15803d}
 .pin.v{background:#8b5cf6}
 </style>
@@ -259,6 +263,8 @@ body.xon #rsheet{opacity:0;pointer-events:none;transform:translateY(40px)}
   <div id="qres"></div>
 </section>
 
+<section class="view" id="v-trains"></section>
+
 <section class="view" id="v-favs"></section>
 
 <section class="view" id="v-metro">
@@ -277,6 +283,7 @@ body.xon #rsheet{opacity:0;pointer-events:none;transform:translateY(40px)}
   <button data-tab="nav" class="on"><svg viewBox="0 0 24 24"><path d="M12 3l7 17-7-4-7 4z"/></svg><span></span></button>
   <button data-tab="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span></span></button>
   <button data-tab="metro"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="4"/><path d="M5 11h14M9 21l2-4M15 21l-2-4"/><circle cx="9" cy="14" r=".6" fill="currentColor"/><circle cx="15" cy="14" r=".6" fill="currentColor"/></svg><span></span></button>
+  <button data-tab="trains"><svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="13" rx="3"/><path d="M6 11h12M9 20l2-4M15 20l-2-4M4 20h16"/><circle cx="9.5" cy="13.5" r=".6" fill="currentColor"/><circle cx="14.5" cy="13.5" r=".6" fill="currentColor"/></svg><span></span></button>
   <button data-tab="favs"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/></svg><span></span></button>
   <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span></span></button>
 </nav>
@@ -384,6 +391,16 @@ Object.assign(D.en, {
   f_fast: 'Fastest', f_xfer: 'Fewer transfers', f_walk: 'Less walking', quick_set: 'set', route_saved: 'Route saved', saved_routes: 'Saved routes', trip_hist: 'Trip history',
   diag: 'Diagnostics', diag_retry: 'Recheck map', diag_map: 'Map', diag_fb: 'fallback', diag_tiles: 'tiles', diag_errs: 'errors', diag_last: 'Last error',
   map_slow: 'Map is loading slowly: using a backup map. Loading the main one in the background', geo_weak: 'Location is slow. Go outdoors and turn on GPS', restart_hint: 'Done. Map redrawn'
+});
+Object.assign(D.ru, {
+  nav_trains: 'Электрички', tr_hint: 'Маршруты пригородных поездов по всей Ленобласти, с пересадками. Введите станцию или адрес.', tr_from: 'Откуда: станция или адрес', tr_to: 'Куда: станция или адрес', tr_me: 'От меня', tr_nav: 'Из навигатора',
+  tr_loading: 'Загружаю сеть электричек (один раз, может занять до минуты)…', tr_none: 'Маршрут на электричках не найден', tr_none_hint: 'В картах OSM могут отсутствовать некоторые линии. Попробуйте ближайшие станции.', tr_empty: 'Выберите, откуда и куда едете', tr_station: 'станция', tr_xfers: 'пересадок: {0}', tr_on_map: 'Показать на карте',
+  go_trains_hint: 'Сюда обычным транспортом не добраться (или далеко за городом). Посмотрите маршрут на электричках в отдельном разделе.', open_trains: 'Открыть раздел «Электрички»', no_train_data: 'Не удалось получить данные об электричках'
+});
+Object.assign(D.en, {
+  nav_trains: 'Trains', tr_hint: 'Suburban train routes across the whole Leningrad Oblast, with transfers. Enter a station or an address.', tr_from: 'From: station or address', tr_to: 'To: station or address', tr_me: 'From me', tr_nav: 'From navigator',
+  tr_loading: 'Loading the train network (once, up to a minute)…', tr_none: 'No train route found', tr_none_hint: 'Some lines may be missing in OSM. Try nearby stations.', tr_empty: 'Choose where you are going from and to', tr_station: 'station', tr_xfers: 'transfers: {0}', tr_on_map: 'Show on map',
+  go_trains_hint: 'This place is not reachable by regular transit (or it is far out of town). See the train route in the separate section.', open_trains: 'Open the Trains section', no_train_data: 'Could not get train data'
 });
 
 "use strict";
@@ -804,7 +821,7 @@ function limitTick() {
 $('#locate').onclick = () => { follow = true; if (nav) { followCam(); return; } if (me && map) map.easeTo({center: [me.lon, me.lat], zoom: 16.5, duration: 700}); else { toast(t('locating')); startGeo(); } };
 
 /* ================= вкладки ================= */
-const TABS = ['nav', 'search', 'metro', 'favs', 'settings'];
+const TABS = ['nav', 'search', 'metro', 'trains', 'favs', 'settings'];
 function tab(n) {
   if (mapPick && n !== 'nav') endPick();
   TABS.forEach(x => document.body.classList.toggle('tab-' + x, x === n));
@@ -816,6 +833,7 @@ function tab(n) {
   if (n === 'favs') renderFavs();
   if (n === 'settings') renderSettings();
   if (n === 'metro') openMetroTab();
+  if (n === 'trains') openTrainsTab();
 }
 $('#nav').onclick = e => { const b = e.target.closest('button'); if (b) { if (b.dataset.tab === 'search' && !$('.view.on')) pickFor = 'to'; if (b.dataset.tab === 'search' && $('#v-search').classList.contains('on')) return; tab(b.dataset.tab); } };
 
@@ -1228,7 +1246,9 @@ async function osrmOptions(o, d, mode, vias = []) {
   if (jf && jf.routes && jf.routes[0]) { const f = jf.routes[0]; if (!rts.some(r => Math.abs(r.distance - f.distance) < 40)) rts.push(f); }
   return rts.slice(0, 4).map((rt, i) => mkOsrmOpt(rt, i, mode, vias));
 }
-const stepToll = st => (st.intersections || []).some(x => (x.classes || []).includes('toll'));
+/* платная дорога: по классам OSRM, а также по названию/номеру (М-11, М-12, ЗСД, ШМСД, ЦКАД и «скоростные автомобильные дороги») */
+const TOLLRE = /(^|[^0-9a-zа-яё])(м-?11|м-?12|а-?113|цкад)(?![0-9])|западный скоростной диаметр|(^|[^а-яё])зсд([^а-яё]|$)|скоростная автомобильная дорога|скоростного движения|шмсд|платн|toll/i;
+const stepToll = st => (st.intersections || []).some(x => (x.classes || []).includes('toll')) || TOLLRE.test(((st.ref || '') + ' ' + (st.name || '')).replace(/M/g, 'М'));
 /* платные участки: геометрия для карты + расстояния вдоль маршрута для предупреждений */
 function tollInfo(rt) {
   const segs = [], along = []; let cum = 0, km = 0;
@@ -1249,10 +1269,10 @@ function mkOsrmOpt(rt, i, mode, vias, idp) {
 /* платные трассы вдоль коридора: варианты «через платную дорогу» (М11, ЗСД, ШМСД и любые другие с toll=yes) */
 async function tollOptions(o, d) {
   const direct = hav(o.lat, o.lon, d.lat, d.lon); if (direct < 8000 || direct > 600000) return [];
-  const pad = Math.max(.05, Math.min(.6, direct / 111000 * .35)), s0 = Math.min(o.lat, d.lat) - pad, n0 = Math.max(o.lat, d.lat) + pad, w0 = Math.min(o.lon, d.lon) - pad * 2, e0 = Math.max(o.lon, d.lon) + pad * 2;
-  const bb = [s0, w0, n0, e0].map(x => x.toFixed(3)).join(','), key = 'tw1|' + bb, c = await kv.get(key); let els = c && Date.now() - c.ts < 7 * 864e5 ? c.els : null;
+  const pad = Math.max(.04, Math.min(.15, direct / 111000 * .2)), s0 = Math.min(o.lat, d.lat) - pad, n0 = Math.max(o.lat, d.lat) + pad, w0 = Math.min(o.lon, d.lon) - pad * 2, e0 = Math.max(o.lon, d.lon) + pad * 2;
+  const bb = [s0, w0, n0, e0].map(x => x.toFixed(3)).join(','), key = 'tw2|' + bb, c = await kv.get(key); let els = c && Date.now() - c.ts < 7 * 864e5 ? c.els : null;
   if (!els) {
-    const j = await lim(() => overpass(`[out:json][timeout:30];way[toll=yes][highway~"^(motorway|trunk|primary|secondary|motorway_link)$"](${bb});out center 200;`, 30000));
+    const j = await overpassOnce(`[out:json][timeout:12];way[toll=yes][highway~"^(motorway|trunk)$"](${bb});out center 60;`, 12000);
     els = (j.elements || []).filter(x => x.center).map(x => ({lat: x.center.lat, lon: x.center.lon, ref: (x.tags && (x.tags.ref || x.tags.name)) || ''})); kv.set(key, {ts: Date.now(), els});
   }
   const byRef = new Map();
@@ -1343,13 +1363,18 @@ async function buildRoute(arg) {
   const my = ++RT.seq, d = {lat: dest.lat, lon: dest.lon};
   const task = (key, label, fn) => { const n = {key, label, state: 'load', fn}; RT.notes.push(n); runTask(n, my); };
   if (S.mode !== 'transit') {
-    task('osrm', t('m_' + S.mode), () => osrmOptions(o, d, S.mode, VIA.slice()));
-    if (S.mode === 'car' && !VIA.length) task('tolls', t('t_tolls'), () => tollOptions(o, d).catch(() => []));
+    /* платные трассы ищем только если среди базовых маршрутов платного нет (иначе проезд по платной и так виден) */
+    task('osrm', t('m_' + S.mode), async () => {
+      const arr = await osrmOptions(o, d, S.mode, VIA.slice());
+      if (S.mode === 'car' && !VIA.length && !arr.some(x => x.toll) && my === RT.seq) setTimeout(() => { if (my === RT.seq) task('tolls', t('t_tolls'), () => tollOptions(o, d).catch(() => [])); }, 0);
+      return arr;
+    });
   }
+  else if (RT.only === 'train') task('train', t('t_train'), () => trainOptions(o, d));
   else {
     if (!RT.only && hav(o.lat, o.lon, d.lat, d.lon) < 4000) task('walk', t('m_foot'), async () => { const a = await osrmOptions(o, d, 'foot'); a[0].id = 'walk'; return [a[0]]; });
     task('metro', t('t_metro'), async () => { const M = await loadMetro(); const op = metroOption(M, o, d, RT.st); return op ? [op] : []; });
-    if (!RT.only) { task('combo', t('t_combo'), () => comboOptions(o, d)); task('surf', t('t_surface'), () => transitRides(o, d, 's')); task('train', t('t_train'), () => transitRides(o, d, 't')); }
+    if (!RT.only) { task('combo', t('t_combo'), () => comboOptions(o, d)); task('surf', t('t_surface'), () => transitRides(o, d, 's')); }
   }
   renderRoute();
 }
@@ -1410,6 +1435,10 @@ function renderRoute() {
     h += RT.notes.filter(n => n.state === 'err').map(n => `<div class="note">⚠️ ${esc(n.label)}: ${esc(n.err)} <a class="retry" data-retry="${n.key}">${t('retry')}</a></div>`).join('');
     const done = !RT.notes.some(n => n.state === 'load');
     if (done && !RT.opts.length && !RT.notes.some(n => n.state === 'err')) h += `<div class="empty">${t('no_routes')}</div>`;
+    if (S.mode === 'transit' && !RT.only && done) {
+      const dd = origin() && dest ? hav(origin().lat, origin().lon, dest.lat, dest.lon) : 0, noRide = !RT.opts.some(o => o.legs && o.legs.some(L => L.type !== 'walk'));
+      if (dd > 20000 || (noRide && dd > 3000)) h += `<div class="note" style="flex-direction:column;align-items:stretch;gap:8px"><div>🚆 ${t('go_trains_hint')}</div><button class="btn" id="goTr">🚆 ${t('open_trains')}</button></div>`;
+    }
     if (S.mode === 'transit' && RT.opts.filter(o => o.kind === 'transit').length > 1) h += `<div class="chips" id="rfil" style="margin:6px 0 2px">${[['fast', 'f_fast'], ['xfer', 'f_xfer'], ['walk', 'f_walk']].map(([k, l]) => `<button data-f="${k}" class="${RT.sortBy === k ? 'on' : ''}">${t(l)}</button>`).join('')}</div>`;
     if (RT.opts.length > 1 || (sel && sel.kind === 'transit')) h += '<div class="opts">' + RT.opts.map((o, i) => `<div class="o ${o.id === RT.sel ? 'sel' : ''}" data-id="${esc(o.id)}" style="animation-delay:${i * 40}ms"><div class="ch">${optChips(o)}</div><div class="tm"><b>${fmtT(o.min)}</b><div class="sub">${o.kind === 'transit' ? '🚶 ' + fmtD(o.walk) : fmtD(o.dist)}</div></div></div>`).join('') + '</div>';
     if (done && RT.notes.some(n => n.key === 'surf' && n.state === 'ok') && S.mode === 'transit' && !RT.opts.some(o => o.legs.some(L => VEH[L.type] && L.type !== 'subway'))) h += `<div class="note">ℹ️ ${t('no_direct')}</div>`;
@@ -1431,6 +1460,7 @@ function renderRoute() {
   el.querySelectorAll('#rfil button').forEach(b => b.onclick = () => { RT.sortBy = b.dataset.f; RT.opts.sort((a, c) => optKey(a) - optKey(c)); if (RT.opts[0]) selectOpt(RT.opts[0].id); else renderRoute(); });
   el.querySelectorAll('#rext button').forEach(b => b.onclick = () => alongSearch(b.dataset.x));
   const vb = $('#viaBtn'); if (vb) vb.onclick = () => openPicker('via');
+  const gt = $('#goTr'); if (gt) gt.onclick = openTrainsFromNav;
   el.querySelectorAll('[data-vx]').forEach(a => a.onclick = e => { e.stopPropagation(); VIA.splice(+a.dataset.vx, 1); buildRoute(); });
   $('#shareRt').onclick = shareRoute; $('#saveRt').onclick = saveRoute;
   $('#goBtn').onclick = () => startNav(false); $('#simBtn').onclick = () => startNav(true);
@@ -1758,6 +1788,192 @@ function showMetroPrompt(i, force) {
 }
 
 
+/* ================= раздел «Электрички»: сеть по всей Ленобласти, маршруты с пересадками ================= */
+const nkeyT = n => String(n || '').toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z0-9]/g, '');
+const TR = {from: null, to: null, opts: [], sel: null, busy: false, err: '', seq: 0, key: '', sug: [], sugWhich: 'from'};
+let trMem = null, trLoading = null;
+
+/* ---- загрузка сети: все пригородные маршруты Ленобласти одним запросом (кэш на 30 дней) ---- */
+function buildTrainNet(rels) {
+  const st = [], grid = new Map(), cx = la => Math.round(la / .004), cy = lo => Math.round(lo / .008);
+  const findSt = (n, la, lo) => {
+    const k = nkeyT(n), a = cx(la), b = cy(lo); let best = -1, bd = 1e9;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const l = grid.get((a + dx) + ',' + (b + dy)); if (!l) continue; for (const i of l) { const s = st[i], d = hav(la, lo, s.la, s.lo), lm = (k && s.k === k) ? 420 : 70; if (d < lm && d < bd) { bd = d; best = i; } } }
+    if (best >= 0) return best;
+    st.push({n, la, lo, k}); const i = st.length - 1, key = a + ',' + b; if (!grid.has(key)) grid.set(key, []); grid.get(key).push(i); return i;
+  };
+  const R = [], seen = new Set();
+  rels.forEach(r => {
+    if (seen.has(r.id) || r.stops.length < 2 || !isCommuter(r)) return; seen.add(r.id);
+    const seq = []; r.stops.forEach(s => { const i = findSt(s.n, s.la, s.lo); if (seq[seq.length - 1] !== i) seq.push(i); });
+    if (seq.length >= 2 && new Set(seq).size >= 2 && seq.length < 990) R.push({id: r.id, ref: r.ref, name: r.name, from: r.from, to: r.to, iv: r.iv || 0, col: r.col, st: seq});
+  });
+  return {v: 1, st: st.map(s => ({n: s.n, la: s.la, lo: s.lo})), rels: R};
+}
+function prepNet(T) { const by = new Map(); T.rels.forEach((r, ri) => r.st.forEach((s, p) => { if (!by.has(s)) by.set(s, []); by.get(s).push([ri, p]); })); T.byM = by; return T; }
+const TR_CHUNKS = [[58.4, 27.8, 60.1, 31.9], [58.4, 31.9, 60.1, 36.0], [60.1, 27.8, 61.8, 31.9], [60.1, 31.9, 61.8, 36.0]];
+const trQ = bb => `[out:json][timeout:120];rel[route~"^(train|light_rail)$"][service!~"long_distance|high_speed|night|international"](${bb})->.r;.r out body;node(r.r);out body qt;`;
+async function loadTrains() {
+  if (trMem) return trMem; if (trLoading) return trLoading;
+  trLoading = (async () => {
+    const c = await kv.get('trnet1');
+    if (c && c.T && c.T.v === 1 && Date.now() - c.ts < 30 * 864e5) { trMem = prepNet(c.T); return trMem; }
+    let els = null;
+    try { els = (await overpass(trQ(LO_BBOX.join(',')), 120000)).elements || []; }
+    catch (e) { /* целиком не вышло — пробуем по четырём частям */
+      els = []; let okN = 0, last = e;
+      for (const b of TR_CHUNKS) { try { els = els.concat((await overpass(trQ(b.join(',')), 90000)).elements || []); okN++; } catch (er) { last = er; } }
+      if (!okN) throw last;
+    }
+    const T = buildTrainNet(parseRels({elements: els}));
+    if (!T.rels.length) throw new Error(t('no_train_data'));
+    kv.set('trnet1', {ts: Date.now(), T}); trMem = prepNet(T); return trMem;
+  })();
+  trLoading.then(() => { trLoading = null; }, () => { trLoading = null; });
+  return trLoading;
+}
+
+/* ---- поиск маршрута: Дейкстра по состояниям «линия + остановка», пересадки и ожидание поезда ---- */
+class Heap {
+  constructor() { this.a = []; } get size() { return this.a.length; }
+  push(k, v) { const a = this.a; a.push([k, v]); let i = a.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break; [a[p], a[i]] = [a[i], a[p]]; i = p; } }
+  pop() { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && a[l][0] < a[m][0]) m = l; if (r < a.length && a[r][0] < a[m][0]) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; i = m; } } return top; }
+}
+const TR_SP = 800, trWait = r => r.iv ? Math.min(30, Math.max(3, r.iv / 2)) : 14, trWalkMin = d => d * 1.25 / WALK;
+function trSegMin(T, r, p) { const a = T.st[r.st[p]], b = T.st[r.st[p + 1]]; return hav(a.la, a.lo, b.la, b.lo) * 1.15 / TR_SP + .7; }
+function trNear(T, P, k) {
+  if (P.st != null) return [{i: P.st, d: 0}];
+  return T.st.map((s, i) => ({i, d: hav(P.lat, P.lon, s.la, s.lo)})).filter(x => x.d <= 30000).sort((a, b) => a.d - b.d).slice(0, k);
+}
+function trDijkstra(T, src, w0) {
+  const dist = new Map(), prev = new Map(), H = new Heap(), done = new Set(), key = (ri, p) => ri * 1000 + p;
+  (T.byM.get(src) || []).forEach(([ri, p]) => { const k = key(ri, p), c = w0 + trWait(T.rels[ri]); dist.set(k, c); prev.set(k, null); H.push(c, k); });
+  while (H.size) {
+    const [c, k] = H.pop(); if (done.has(k)) continue; done.add(k); if (c > 720) break;
+    const ri = Math.floor(k / 1000), p = k % 1000, r = T.rels[ri], s = r.st[p];
+    if (p + 1 < r.st.length) { const k2 = key(ri, p + 1), nc = c + trSegMin(T, r, p); if (nc < (dist.has(k2) ? dist.get(k2) : 1e9)) { dist.set(k2, nc); prev.set(k2, k); H.push(nc, k2); } }
+    (T.byM.get(s) || []).forEach(([rj, q]) => { if (rj === ri) return; const k2 = key(rj, q), nc = c + 3 + trWait(T.rels[rj]); if (nc < (dist.has(k2) ? dist.get(k2) : 1e9)) { dist.set(k2, nc); prev.set(k2, k); H.push(nc, k2); } });
+  }
+  return {dist, prev};
+}
+const trShort = r => (r.ref || (r.to ? '→ ' + r.to : r.name) || '').slice(0, 22);
+function trLegs(T, path, A, B, a, b) {
+  const segs = []; let seg = null;
+  path.forEach(k => { const ri = Math.floor(k / 1000), p = k % 1000; if (seg && seg.ri === ri && p === seg.p1 + 1) seg.p1 = p; else { if (seg) segs.push(seg); seg = {ri, p0: p, p1: p}; } });
+  if (seg) segs.push(seg);
+  const rides = segs.filter(g => g.p1 > g.p0); if (!rides.length) return null;
+  const out = [], g0 = rides[0], s0 = T.st[T.rels[g0.ri].st[g0.p0]], gl = rides[rides.length - 1], sl = T.st[T.rels[gl.ri].st[gl.p1]];
+  if (a.d > 30) out.push(walkLeg(A, {lat: s0.la, lon: s0.lo}, s0.n));
+  rides.forEach((g, gi) => {
+    const r = T.rels[g.ri], ss = r.st.slice(g.p0, g.p1 + 1).map(i => ({n: T.st[i].n, la: T.st[i].la, lo: T.st[i].lo})), coords = ss.map(s => [s.lo, s.la]);
+    let len = 0, mn = 0; for (let i = 1; i < coords.length; i++) len += hav(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]); for (let p = g.p0; p < g.p1; p++) mn += trSegMin(T, r, p);
+    out.push({type: 'train', ref: trShort(r), color: r.col || VEH.train.col, coords, dist: len, min: mn, wait: trWait(r) + (gi ? 3 : 0), iv: r.iv || 0, relId: r.id, from: ss[0].n, to: ss[ss.length - 1].n, n: ss.length - 1, dirTo: r.to || ss[ss.length - 1].n, stops: ss});
+  });
+  if (b.d > 30) out.push(walkLeg({lat: sl.la, lon: sl.lo}, B, ''));
+  return {legs: out, key: rides.map(g => T.rels[g.ri].id).join('-')};
+}
+function planTrains(T, A, B) {
+  const oa = trNear(T, A, 3), ob = trNear(T, B, 3), cand = new Map();
+  oa.forEach(a => {
+    const {dist, prev} = trDijkstra(T, a.i, trWalkMin(a.d));
+    ob.forEach(b => {
+      let best = null; (T.byM.get(b.i) || []).forEach(([ri, p]) => { const k = ri * 1000 + p, c = dist.get(k); if (c == null) return; const tot = c + trWalkMin(b.d); if (!best || tot < best.tot) best = {k, tot}; });
+      if (!best) return; const path = []; let k = best.k; while (k != null) { path.unshift(k); k = prev.get(k); }
+      const L = trLegs(T, path, A, B, a, b); if (!L || cand.has(L.key)) return;
+      const op = finish({id: 'tr_' + a.i + '_' + b.i + '_' + L.key, kind: 'transit', mode: 'transit', train: true, legs: L.legs}); if (op.walk > 9000) return; cand.set(L.key, op);
+    });
+  });
+  const all = [...cand.values()].sort((x, y) => (x.score || x.min) - (y.score || y.min)), best = all.length ? (all[0].score || all[0].min) : 0;
+  return all.filter(o => (o.score || o.min) <= best * 1.6 + 15).slice(0, 4);
+}
+/* пешком до станции далеко — подвозим на метро, если так быстрее */
+async function trImprove(list, o, d) {
+  let M = null; try { M = await loadMetro(); } catch (e) {} if (!M) return list;
+  list.forEach(op => { try {
+    const L0 = op.legs[0], rd = op.legs.find(L => L.type !== 'walk'); let ch = false;
+    if (L0.type === 'walk' && L0.dist > 900 && rd) { const lg = metroAccess(M, {lat: o.lat, lon: o.lon}, {lat: rd.coords[0][1], lon: rd.coords[0][0]}, L0); if (lg) { op.legs.splice(0, 1, ...lg); ch = true; } }
+    const Ln = op.legs[op.legs.length - 1], rl = op.legs.filter(L => L.type !== 'walk').pop();
+    if (Ln.type === 'walk' && Ln.dist > 900 && rl && rl !== Ln) { const c = rl.coords[rl.coords.length - 1], lg = metroAccess(M, {lat: c[1], lon: c[0]}, {lat: d.lat, lon: d.lon}, Ln); if (lg) { op.legs.splice(op.legs.length - 1, 1, ...lg); ch = true; } }
+    if (ch) { finish(op); op.id += '_m'; }
+  } catch (e) {} });
+  return list.sort((x, y) => (x.score || x.min) - (y.score || y.min));
+}
+async function trainOptions(o, d) {
+  const T = await loadTrains(), list = await trImprove(planTrains(T, o, d), o, d);
+  if (!list.length) { const e = new Error(t('tr_none')); e.soft = true; throw e; }
+  return list;
+}
+
+/* ---- экран раздела ---- */
+const trPlaceKey = p => p ? p.lat.toFixed(4) + ',' + p.lon.toFixed(4) : '';
+function trSkeleton() {
+  const v = $('#v-trains'); if (v.dataset.ready) return; v.dataset.ready = '1';
+  v.innerHTML = `<div class="vhead"><h2 id="trTitle"></h2></div><div class="sub" id="trHint"></div>
+  <div id="tfields"><div id="tsug" class="surf"></div><div class="mf"><span>🟢</span><input type="text" id="tFrom" autocomplete="off"><button class="x" id="tFromX">×</button></div><div class="mf"><span>🏁</span><input type="text" id="tTo" autocomplete="off"><button class="x" id="tToX">×</button></div></div>
+  <div class="chips"><button id="tMe"></button><button id="tNavB"></button><button id="tSwap">⇅</button></div><div id="tres"></div>`;
+  const sug = $('#tsug');
+  const show = debounce(async which => {
+    const q = $(which === 'from' ? '#tFrom' : '#tTo').value.trim(); TR.sugWhich = which; if (q.length < 2) { sug.classList.remove('on'); return; }
+    const k = nkeyT(q), items = [];
+    if (trMem) trMem.st.forEach((s, i) => { const n = nkeyT(s.n); if (n && n.includes(k)) items.push({st: i, name: s.n, lat: s.la, lon: s.lo, rank: n.startsWith(k) ? 0 : 1}); });
+    items.sort((a, b) => a.rank - b.rank || a.name.length - b.name.length); const st = items.slice(0, 6);
+    const render = pl => { if (TR.sugWhich !== which) return; TR.sug = st.concat(pl); sug.innerHTML = TR.sug.length ? TR.sug.map((p, i) => `<div class="li" data-i="${i}"><div class="li-i">${p.st != null ? '🚉' : '📍'}</div><div class="lt"><b>${esc(p.name)}</b><span class="sub">${esc(p.sub || (p.st != null ? t('tr_station') : ''))}</span></div></div>`).join('') : `<div class="empty" style="padding:12px">${t('nothing')}</div>`; sug.classList.add('on'); };
+    render([]);
+    if (q.length >= 3) { try { const j = await fj(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1&accept-language=${S.lang}&countrycodes=ru&viewbox=27.8,61.8,36.0,58.4&bounded=1&q=${encodeURIComponent(q)}`, {ms: 9000}); render(j.map(p => ({name: placeName(p), lat: +p.lat, lon: +p.lon, sub: p.display_name.split(',').slice(1, 3).join(',').trim()}))); } catch (e) {} }
+  }, 350);
+  sug.onpointerdown = e => {
+    e.preventDefault(); const x = e.target.closest('.li'); if (!x) return; const p = TR.sug[+x.dataset.i]; if (!p) return;
+    TR[TR.sugWhich] = {lat: p.lat, lon: p.lon, name: p.name, st: p.st}; sug.classList.remove('on'); document.activeElement && document.activeElement.blur && document.activeElement.blur(); trSync(); trCompute();
+  };
+  [['from', '#tFrom', '#tFromX'], ['to', '#tTo', '#tToX']].forEach(([w, i, x]) => {
+    const inp = $(i);
+    inp.oninput = () => { TR[w] = null; show(w); }; inp.onfocus = async () => { inp.select(); if (!trMem) { try { await loadTrains(); } catch (e) {} } if (inp.value && !TR[w]) show(w); };
+    $(x).onclick = () => { TR[w] = null; inp.value = ''; sug.classList.remove('on'); TR.opts = []; trRender(); };
+  });
+  $('#tMe').onclick = () => { if (!me) { toast(t('locating')); startGeo(); return; } TR.from = {lat: me.lat, lon: me.lon, name: t('my_loc'), my: true}; trSync(); trCompute(); };
+  $('#tNavB').onclick = () => { const o = origin(); TR.from = o ? Object.assign({}, o, {my: !startPt}) : TR.from; if (dest) TR.to = {lat: dest.lat, lon: dest.lon, name: dest.name}; trSync(); trCompute(); };
+  $('#tSwap').onclick = () => { const a = TR.from; TR.from = TR.to; TR.to = a; trSync(); trCompute(); };
+}
+function trSync() {
+  $('#trTitle').textContent = t('nav_trains'); $('#trHint').textContent = t('tr_hint'); $('#tMe').textContent = '📍 ' + t('tr_me'); $('#tNavB').textContent = '🧭 ' + t('tr_nav');
+  $('#tFrom').placeholder = t('tr_from'); $('#tTo').placeholder = t('tr_to');
+  [['from', '#tFrom'], ['to', '#tTo']].forEach(([w, i]) => { const inp = $(i); if (document.activeElement !== inp) inp.value = TR[w] ? TR[w].name : ''; });
+}
+async function openTrainsTab() { trSkeleton(); trSync(); if (!trMem && !trLoading) loadTrains().then(() => { if ($('#v-trains').classList.contains('on')) trRender(); }).catch(() => {}); trCompute(true); }
+function openTrainsFromNav() {
+  const o = origin(); TR.from = o ? Object.assign({}, o, {my: !startPt}) : TR.from; TR.to = dest ? {lat: dest.lat, lon: dest.lon, name: dest.name} : TR.to; TR.key = ''; tab('trains');
+}
+async function trCompute(soft) {
+  if (!TR.from || !TR.to) { TR.opts = []; trRender(); return; }
+  const key = trPlaceKey(TR.from) + '|' + trPlaceKey(TR.to); if (soft && key === TR.key && (TR.opts.length || TR.busy)) { trRender(); return; }
+  TR.key = key; const my = ++TR.seq; TR.busy = true; TR.err = ''; TR.opts = []; TR.sel = null; trRender();
+  try {
+    const T = await loadTrains(); if (my !== TR.seq) return;
+    const list = await trImprove(planTrains(T, TR.from, TR.to), TR.from, TR.to); if (my !== TR.seq) return;
+    TR.opts = list; TR.sel = list[0] ? list[0].id : null; if (!list.length) TR.err = t('tr_none');
+  } catch (e) { if (my !== TR.seq) return; TR.err = (e && e.message) || t('err_server'); TR.retry = true; }
+  TR.busy = false; trRender();
+}
+const trCur = () => TR.opts.find(o => o.id === TR.sel) || null;
+function trRender() {
+  const box = $('#tres'); if (!box) return;
+  if (TR.busy) { box.innerHTML = `<div class="note"><i class="spin"></i>${trMem ? t('searching') : t('tr_loading')}</div>`; return; }
+  if (!TR.from || !TR.to) { box.innerHTML = `<div class="empty">🚆<br>${t('tr_empty')}</div>`; return; }
+  if (!TR.opts.length) { box.innerHTML = `<div class="empty">${esc(TR.err || t('tr_none'))}${TR.retry ? ` <a class="retry" id="trRetry">${t('retry')}</a>` : `<br><span class="sub">${t('tr_none_hint')}</span>`}</div>`; const r = $('#trRetry'); if (r) r.onclick = () => { TR.retry = false; TR.key = ''; trCompute(); }; return; }
+  const sel = trCur(), nTr = o => o.legs.filter(L => L.type === 'train').length;
+  let h = '<div class="opts">' + TR.opts.map((o, i) => `<div class="o ${o.id === TR.sel ? 'sel' : ''}" data-id="${esc(o.id)}" style="animation-delay:${i * 40}ms"><div class="ch">${optChips(o)}</div><div class="tm"><b>${fmtT(o.min)}</b><div class="sub">${nTr(o) > 1 ? t('tr_xfers', nTr(o) - 1) + ' · ' : ''}🚶 ${fmtD(o.walk)}</div></div></div>`).join('') + '</div>';
+  if (sel) { h += '<div class="steps">' + sel.legs.map(L => `<div class="step"><div class="si">${legIcon(L)}</div><div><div>${esc(legTitle(L))}</div><div class="sub">${fmtT(L.min)}${L.wait ? ' · ' + t('wait_n', Math.round(L.wait)) : ''}</div></div></div>`).join('') + '</div>'; h += `<div class="acts"><button class="btn" id="trMap">🗺 ${t('tr_on_map')}</button></div>`; }
+  box.innerHTML = h;
+  box.querySelectorAll('.o').forEach(x => x.onclick = () => { TR.sel = x.dataset.id; trRender(); });
+  const m = $('#trMap'); if (m) m.onclick = trShowMap;
+}
+function trShowMap() {
+  const A = TR.from, B = TR.to; if (!A || !B) return; S.mode = 'transit'; save(); renderModes();
+  if (A.my) clearOrigin(false); else setOrigin(A.lat, A.lon, A.name, false);
+  setDest(B.lat, B.lon, B.name, false); buildRoute({only: 'train'});
+}
+
+
 /* ================= вкладка «Метро» (схема) ================= */
 document.head.insertAdjacentHTML('beforeend', '<style>#schemeBox .lb{fill:var(--text);pointer-events:none;font-size:12.6px;font-weight:500}#schemeBox .lb.cl{fill:#999}#schemeBox .lb.dim{opacity:.35}#schemeBox svg{touch-action:none}#schemeBox .wt{fill:#e1f3fd}#schemeBox .wt2{stroke:#e1f3fd;stroke-width:14;stroke-linejoin:round}[data-theme=dark] #schemeBox .wt{fill:#16303f}[data-theme=dark] #schemeBox .wt2{stroke:#16303f}</style>');
 const MT = {from: null, to: null};
@@ -2005,10 +2221,10 @@ async function clearOffline() { try { await caches.delete('nova-maps'); await kv
 /* ================= язык и запуск ================= */
 function applyLang() {
   document.documentElement.lang = S.lang;
-  $$('#nav button').forEach((b, i) => { b.querySelector('span').textContent = t(['nav_map', 'nav_search', 'nav_metro', 'nav_favs', 'nav_settings'][i]); });
+  $$('#nav button').forEach((b, i) => { b.querySelector('span').textContent = t(['nav_map', 'nav_search', 'nav_metro', 'nav_trains', 'nav_favs', 'nav_settings'][i]); });
   $('#pickCancel').textContent = t('cancel'); $('#pickOk').textContent = t('done'); $('#nbEnd').textContent = t('exit'); $('#nbVoice').textContent = S.voice ? '🔊' : '🔇';
   renderModes(); updateToPill(); updateFromPill(); renderRoute();
-  const on = $('.view.on'); if (on) { const n = on.id.slice(2); if (n === 'search') openSearchTab(); else if (n === 'favs') renderFavs(); else if (n === 'settings') renderSettings(); else if (n === 'metro') openMetroTab(); }
+  const on = $('.view.on'); if (on) { const n = on.id.slice(2); if (n === 'search') openSearchTab(); else if (n === 'favs') renderFavs(); else if (n === 'settings') renderSettings(); else if (n === 'metro') openMetroTab(); else if (n === 'trains') openTrainsTab(); }
 }
 document.addEventListener('click', e => { const b = e.target.closest('.mn'); if (!b) return; const sh = b.closest('.sheet,#mres,#msheet'); if (sh) sh.classList.toggle('smin'); });
 applyTheme(); applyLang(); $('#viewBtn').textContent = S.d3 ? '3D' : '2D';
