@@ -1,4 +1,4 @@
-const C = 'nova-v6', MAPS = 'nova-maps';
+const C = 'nova-v7', MAPS = 'nova-maps';
 const SHELL = ['./', './index.html', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(C).then(c => c.addAll(SHELL)).catch(() => {})); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C && k !== MAPS).map(k => caches.delete(k))))); self.clients.claim(); });
